@@ -184,17 +184,16 @@ $pendingCount = count($posts);
 <?php if (empty($posts)): ?>
     <div class="card">
         <div class="empty-state" style="padding:48px 24px">
-            <i class="fas fa-clipboard-check" style="font-size:48px;color:var(--success);animation:emptyFloat 3s ease-in-out infinite"></i>
+            <span class="atom-icon atom-icon-lg" aria-hidden="true">
+                <span class="atom-nucleus"></span>
+                <span class="atom-orbit atom-orbit-1"><span class="atom-electron"></span></span>
+                <span class="atom-orbit atom-orbit-2"><span class="atom-electron"></span></span>
+                <span class="atom-orbit atom-orbit-3"><span class="atom-electron"></span></span>
+            </span>
             <p style="font-size:16px;font-weight:600;margin-top:16px;color:var(--text)">All caught up!</p>
             <p style="color:var(--text-muted);font-size:13px;max-width:320px;margin:4px auto 0">No posts are waiting for review right now. When editors submit posts for approval, they will appear here.</p>
         </div>
     </div>
-    <style>
-    @keyframes emptyFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
-    }
-    </style>
 <?php else: ?>
     <div id="review-list">
         <?php foreach ($posts as $post):

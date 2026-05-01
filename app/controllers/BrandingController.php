@@ -53,6 +53,16 @@ class BrandingController extends Controller
             }
         }
 
+        // Dark logo (used on light-background reports/PDFs)
+        if (!empty($_POST['remove_dark_logo']) && $_POST['remove_dark_logo'] === '1') {
+            $data['dark_logo_url'] = '';
+        } elseif (!empty($_FILES['dark_logo']['tmp_name'])) {
+            $darkLogoPath = $this->handleUpload('dark_logo');
+            if ($darkLogoPath) {
+                $data['dark_logo_url'] = $darkLogoPath;
+            }
+        }
+
         if (!empty($_POST['remove_login_bg']) && $_POST['remove_login_bg'] === '1') {
             $data['login_bg_url'] = '';
         } elseif (!empty($_FILES['login_bg']['tmp_name'])) {
@@ -72,11 +82,11 @@ class BrandingController extends Controller
             }
         }
 
-        // Debug: log what we're saving (temporary — remove after fix)
-        $logFile = APP_ROOT . '/storage/branding_debug.log';
-        file_put_contents($logFile, date('Y-m-d H:i:s') . " SAVE DATA: " . json_encode($data) . "\nFILES: " . json_encode(array_map(function($f) { return ['name' => $f['name'] ?? '', 'size' => $f['size'] ?? 0, 'error' => $f['error'] ?? -1, 'tmp' => $f['tmp_name'] ?? '']; }, $_FILES)) . "\n", FILE_APPEND);
-
         $brandingService->save($clientId, $data);
+
+        (new ActivityLogService())->logSettingsChange('branding', [
+            'fields' => array_keys($data),
+        ]);
 
         // Update user first name if provided
         $firstName = trim($_POST['first_name'] ?? '');

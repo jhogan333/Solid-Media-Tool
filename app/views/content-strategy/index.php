@@ -3,7 +3,6 @@ $themes = $themes ?? [];
 $schedule = $schedule ?? [];
 $b = $branding ?? (new BrandingService())->get($GLOBALS['client_id']);
 $criPrimary = $b['primary_color'] ?? '#6366f1';
-$criSecondary = $b['secondary_color'] ?? '#8b5cf6';
 $criLogo = $b['logo_url'] ?? '';
 $criCompany = $b['company_name'] ?? APP_NAME;
 if (empty($_SESSION['csrf_token'])) {
@@ -328,7 +327,7 @@ $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', '
     text-align: center;
     padding: 48px 40px;
     border-radius: 24px;
-    background: linear-gradient(165deg, <?= $criPrimary ?> 0%, <?= $criSecondary ?> 100%);
+    background: linear-gradient(165deg, <?= $criPrimary ?> 0%, color-mix(in srgb, <?= $criPrimary ?> 55%, #000000) 100%);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.1), 0 24px 80px rgba(0,0,0,0.3), 0 0 120px -20px <?= $criPrimary ?>88;
     max-width: 400px;
     width: 85%;
@@ -662,11 +661,13 @@ function openThemeModal(themeId) {
     document.getElementById('modal_copy_instructions').value = '';
     document.getElementById('modal_hashtags').value = '';
     document.getElementById('modal_image_style').value = 'global';
-    document.getElementById('req_phone').checked = false;
-    document.getElementById('req_website').checked = false;
-    document.getElementById('req_cta').checked = false;
-    document.getElementById('req_hashtags').checked = false;
-    document.getElementById('req_emojis').checked = false;
+    // New theme: default all required elements to ON. The user can uncheck any
+    // they don't want, but phone/website/CTA/hashtags/emojis are on by default.
+    document.getElementById('req_phone').checked = true;
+    document.getElementById('req_website').checked = true;
+    document.getElementById('req_cta').checked = true;
+    document.getElementById('req_hashtags').checked = true;
+    document.getElementById('req_emojis').checked = true;
     document.getElementById('samplesContainer').innerHTML = '';
     sampleCount = 0;
     document.getElementById('themeModalTitle').textContent = 'New Theme';

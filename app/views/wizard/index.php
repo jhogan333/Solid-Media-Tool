@@ -3,7 +3,6 @@ $b = $branding ?? [];
 $isRerun = $isRerun ?? false;
 $existingThemes = $existingThemes ?? [];
 $primaryColor = $b['primary_color'] ?? '#6366f1';
-$secondaryColor = $b['secondary_color'] ?? '#8b5cf6';
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -497,20 +496,11 @@ $isMandatory = $isMandatory ?? false;
                     <label class="form-label">Tagline</label>
                     <input type="text" id="wiz_tagline" class="form-input" value="<?= htmlspecialchars($b['tagline'] ?? '') ?>" placeholder="Your company tagline or slogan">
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-                    <div class="form-group">
-                        <label class="form-label">Primary Color</label>
-                        <div class="wizard-color-row">
-                            <input type="color" id="wiz_primary" value="<?= htmlspecialchars($b['primary_color'] ?? '#6366f1') ?>">
-                            <input type="text" id="wiz_primary_hex" class="form-input" value="<?= htmlspecialchars($b['primary_color'] ?? '#6366f1') ?>" maxlength="7" style="max-width:120px">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Secondary Color</label>
-                        <div class="wizard-color-row">
-                            <input type="color" id="wiz_secondary" value="<?= htmlspecialchars($b['secondary_color'] ?? '#8b5cf6') ?>">
-                            <input type="text" id="wiz_secondary_hex" class="form-input" value="<?= htmlspecialchars($b['secondary_color'] ?? '#8b5cf6') ?>" maxlength="7" style="max-width:120px">
-                        </div>
+                <div class="form-group">
+                    <label class="form-label">Brand Color</label>
+                    <div class="wizard-color-row">
+                        <input type="color" id="wiz_primary" value="<?= htmlspecialchars($b['primary_color'] ?? '#6366f1') ?>">
+                        <input type="text" id="wiz_primary_hex" class="form-input" value="<?= htmlspecialchars($b['primary_color'] ?? '#6366f1') ?>" maxlength="7" style="max-width:120px">
                     </div>
                 </div>
                 <div class="form-group">
@@ -599,7 +589,6 @@ var wizardData = {
     keywords: [],
     tagline: '<?= addslashes($b['tagline'] ?? '') ?>',
     primary_color: '<?= $primaryColor ?>',
-    secondary_color: '<?= $secondaryColor ?>',
     themes: []
 };
 var suggestedThemes = [];
@@ -624,13 +613,6 @@ document.getElementById('wiz_primary').addEventListener('input', function() {
 document.getElementById('wiz_primary_hex').addEventListener('input', function() {
     if (/^#[0-9a-fA-F]{6}$/.test(this.value)) document.getElementById('wiz_primary').value = this.value;
 });
-document.getElementById('wiz_secondary').addEventListener('input', function() {
-    document.getElementById('wiz_secondary_hex').value = this.value;
-});
-document.getElementById('wiz_secondary_hex').addEventListener('input', function() {
-    if (/^#[0-9a-fA-F]{6}$/.test(this.value)) document.getElementById('wiz_secondary').value = this.value;
-});
-
 function setStep(step, direction) {
     var oldStep = currentStep;
     var isForward = direction !== 'back';
@@ -688,7 +670,6 @@ function wizNext(fromStep) {
     } else if (fromStep === 3) {
         wizardData.tagline = document.getElementById('wiz_tagline').value.trim();
         wizardData.primary_color = document.getElementById('wiz_primary').value;
-        wizardData.secondary_color = document.getElementById('wiz_secondary').value;
         setStep(4);
         startThemeSuggestions();
     } else if (fromStep === 4) {

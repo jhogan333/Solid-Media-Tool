@@ -60,6 +60,11 @@ class UserController extends Controller
             return;
         }
 
+        (new ActivityLogService())->logUserAction('user_created', (int)$result['user_id'], $firstName ?: $email, [
+            'email' => $email,
+            'role'  => $role,
+        ]);
+
         // Try to send invitation email
         $inviteResult = $service->inviteUser($result['user_id'], $clientId, $result['temp_password']);
 
@@ -86,8 +91,45 @@ class UserController extends Controller
             return;
         }
 
+        // Snapshot old state so we can detect role changes after update
+        $before = Database::fetch(
+            "SELECT id, first_name, username, email, role FROM users WHERE id = :id AND client_id = :cid",
+            ['id' => (int)$id, 'cid' => $GLOBALS['client_id']]
+        );
+
         $service = new UserManagementService();
         $updated = $service->updateUser((int)$id, $GLOBALS['client_id'], $input);
+
+        if ($updated && $before) {
+            $targetName = $before['first_name'] ?: ($before['username'] ?: $before['email'] ?: ('user #' . $id));
+            $logService = new ActivityLogService();
+
+            // Detect role change specifically (it's the most important signal)
+            if (isset($input['role']) && $input['role'] !== $before['role']) {
+                $logService->logUserAction('role_changed', (int)$id, $targetName, [
+                    'old_role' => $before['role'],
+                    'new_role' => $input['role'],
+                ]);
+            }
+
+            // If a new password was set, log that too
+            if (!empty($input['new_password'])) {
+                $logService->logUserAction('password_reset_by_admin', (int)$id, $targetName);
+            }
+
+            // General update event (only if something other than role/password changed)
+            $changedKeys = [];
+            foreach (['first_name', 'email', 'is_active'] as $k) {
+                if (array_key_exists($k, $input) && (string)($before[$k] ?? '') !== (string)$input[$k]) {
+                    $changedKeys[] = $k;
+                }
+            }
+            if (!empty($changedKeys)) {
+                $logService->logUserAction('user_updated', (int)$id, $targetName, [
+                    'fields_changed' => $changedKeys,
+                ]);
+            }
+        }
 
         @ob_clean();
         $this->json(['success' => $updated]);
@@ -103,8 +145,14 @@ class UserController extends Controller
             return;
         }
 
+        $target = Database::fetch("SELECT first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => (int)$id, 'cid' => $GLOBALS['client_id']]);
         $service = new UserManagementService();
         $result = $service->deactivateUser((int)$id, $GLOBALS['client_id']);
+
+        if ($result && $target) {
+            $name = $target['first_name'] ?: ($target['username'] ?: $target['email']);
+            (new ActivityLogService())->logUserAction('user_deactivated', (int)$id, $name);
+        }
 
         @ob_clean();
         $this->json(['success' => $result]);
@@ -120,8 +168,14 @@ class UserController extends Controller
             return;
         }
 
+        $target = Database::fetch("SELECT first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => (int)$id, 'cid' => $GLOBALS['client_id']]);
         $service = new UserManagementService();
         $result = $service->activateUser((int)$id, $GLOBALS['client_id']);
+
+        if ($result && $target) {
+            $name = $target['first_name'] ?: ($target['username'] ?: $target['email']);
+            (new ActivityLogService())->logUserAction('user_activated', (int)$id, $name);
+        }
 
         @ob_clean();
         $this->json(['success' => $result]);
@@ -137,8 +191,14 @@ class UserController extends Controller
             return;
         }
 
+        $target = Database::fetch("SELECT first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => (int)$id, 'cid' => $GLOBALS['client_id']]);
         $service = new UserManagementService();
         $result = $service->softDeleteUser((int)$id, $GLOBALS['client_id']);
+
+        if ($result && $target) {
+            $name = $target['first_name'] ?: ($target['username'] ?: $target['email']);
+            (new ActivityLogService())->logUserAction('user_deleted', (int)$id, $name);
+        }
 
         @ob_clean();
         $this->json(['success' => $result]);
@@ -154,8 +214,14 @@ class UserController extends Controller
             return;
         }
 
+        $target = Database::fetch("SELECT first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => (int)$id, 'cid' => $GLOBALS['client_id']]);
         $service = new UserManagementService();
         $result = $service->restoreUser((int)$id, $GLOBALS['client_id']);
+
+        if ($result && $target) {
+            $name = $target['first_name'] ?: ($target['username'] ?: $target['email']);
+            (new ActivityLogService())->logUserAction('user_restored', (int)$id, $name);
+        }
 
         @ob_clean();
         $this->json(['success' => $result]);
@@ -182,7 +248,7 @@ class UserController extends Controller
         }
 
         // Verify user exists and belongs to this client
-        $user = Database::fetch("SELECT id FROM users WHERE id = :id AND client_id = :cid", ['id' => $userId, 'cid' => $clientId]);
+        $user = Database::fetch("SELECT id, first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => $userId, 'cid' => $clientId]);
         if (!$user) {
             @ob_clean();
             $this->json(['error' => 'User not found.'], 404);
@@ -192,6 +258,9 @@ class UserController extends Controller
         // Permanently delete
         $db = Database::connect();
         $db->prepare("DELETE FROM users WHERE id = ? AND client_id = ?")->execute([$userId, $clientId]);
+
+        $name = $user['first_name'] ?: ($user['username'] ?: ($user['email'] ?? ''));
+        (new ActivityLogService())->logUserAction('user_permanently_deleted', $userId, $name);
 
         @ob_clean();
         $this->json(['success' => true]);
@@ -210,6 +279,7 @@ class UserController extends Controller
         $service = new UserManagementService();
         $clientId = $GLOBALS['client_id'];
 
+        $target = Database::fetch("SELECT first_name, username, email FROM users WHERE id = :id AND client_id = :cid", ['id' => (int)$id, 'cid' => $clientId]);
         $tempPassword = $service->resetPassword((int)$id, $clientId);
         if (!$tempPassword) {
             @ob_clean();
@@ -217,7 +287,14 @@ class UserController extends Controller
             return;
         }
 
+        $name = $target ? ($target['first_name'] ?: ($target['username'] ?: $target['email'])) : 'user #' . $id;
+        $logService = new ActivityLogService();
+        $logService->logUserAction('password_reset_by_admin', (int)$id, $name);
+
         $inviteResult = $service->inviteUser((int)$id, $clientId, $tempPassword);
+        if (!empty($inviteResult['success'])) {
+            $logService->logUserAction('invite_sent', (int)$id, $name);
+        }
 
         @ob_clean();
         $this->json([

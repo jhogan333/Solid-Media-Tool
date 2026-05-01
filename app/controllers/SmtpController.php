@@ -55,6 +55,11 @@ class SmtpController extends Controller
         $model = new SmtpSetting();
         $model->upsertByClient($GLOBALS['client_id'], $data);
 
+        (new ActivityLogService())->logSettingsChange('smtp', [
+            'provider'      => $provider,
+            'is_configured' => (bool) $data['is_configured'],
+        ]);
+
         @ob_clean();
         $this->json(['success' => true, 'is_configured' => $data['is_configured']]);
     }

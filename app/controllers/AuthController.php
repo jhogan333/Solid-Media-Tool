@@ -22,17 +22,20 @@ class AuthController extends Controller
         $password = $_POST['password'] ?? '';
 
         if (empty($username) || empty($password)) {
+            (new ActivityLogService())->logLogin(null, $username !== '' ? $username : '(blank)', null, false, 'missing_credentials');
             $this->loginError('Please enter both username and password.');
             return;
         }
 
         $result = $this->authenticateUser($username, $password);
         if (is_string($result)) {
+            (new ActivityLogService())->logLogin(null, $username, null, false, $result);
             $this->loginError($result);
             return;
         }
 
         $this->populateSession($result);
+        (new ActivityLogService())->logLogin((int)$result['id'], $result['username'] ?? $username, $result['role'] ?? null, true);
         $this->redirect('/dashboard');
     }
 
@@ -50,18 +53,21 @@ class AuthController extends Controller
         $password = $_POST['password'] ?? '';
 
         if (!$username || !$password) {
+            (new ActivityLogService())->logLogin(null, $username !== '' ? $username : '(blank)', null, false, 'missing_credentials');
             $this->json(['error' => 'Please enter both username and password.'], 400);
             return;
         }
 
         $result = $this->authenticateUser($username, $password);
         if (is_string($result)) {
+            (new ActivityLogService())->logLogin(null, $username, null, false, $result);
             $this->json(['error' => $result], 401);
             return;
         }
 
         $this->populateSession($result);
         $_SESSION['just_logged_in'] = true;
+        (new ActivityLogService())->logLogin((int)$result['id'], $result['username'] ?? $username, $result['role'] ?? null, true);
 
         $this->json([
             'success' => true,
@@ -160,6 +166,8 @@ class AuthController extends Controller
         ]);
 
         unset($_SESSION['must_change_password']);
+
+        (new ActivityLogService())->logUserAction('password_changed', (int)$_SESSION['user_id'], $_SESSION['username'] ?? '');
 
         @ob_clean();
         $this->json(['success' => true]);
@@ -347,6 +355,16 @@ class AuthController extends Controller
 
         if ($tempPassword) {
             $service->inviteUser($user['id'], $user['client_id'], $tempPassword);
+            (new ActivityLogService())->log([
+                'client_id'   => $user['client_id'],
+                'user_id'     => $user['id'],
+                'user_name'   => $user['first_name'] ?? $user['username'] ?? $email,
+                'user_role'   => $user['role'] ?? null,
+                'action'      => 'password_self_reset',
+                'entity_type' => 'user',
+                'entity_id'   => (int) $user['id'],
+                'description' => 'Password reset via forgot-password link',
+            ]);
         }
 
         @ob_clean();
@@ -355,6 +373,13 @@ class AuthController extends Controller
 
     public function logout(): void
     {
+        if (isset($_SESSION['user_id'])) {
+            (new ActivityLogService())->logLogout(
+                (int) $_SESSION['user_id'],
+                $_SESSION['username'] ?? $_SESSION['first_name'] ?? 'Unknown',
+                $_SESSION['role'] ?? null
+            );
+        }
         session_destroy();
         header('Location: ' . BASE_URL . '/login');
         exit;

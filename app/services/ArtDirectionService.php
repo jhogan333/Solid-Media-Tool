@@ -12,7 +12,11 @@ class ArtDirectionService
         'mood' => 'professional',
         'brand_color_bleed' => 25,
         'illustration_limit' => 'max_1_per_week',
-        'avoid_list' => 'cartoon, childish, playful, 3D render, Pixar-style, classroom, playground, clip-art, watercolor, anime, comic, doodle, crayon, sketch, hand-drawn, coloring book',
+        // The avoid list is now a subject-matter exclusion (not a style list).
+        // Style is already handled by image_style + realism_level. Leave this empty
+        // by default so each client can list the specific things they don't want
+        // appearing in generated images (e.g. children, pets, outdoor scenes).
+        'avoid_list' => '',
         'watermark_enabled' => 1,
         'watermark_website' => '',
         'watermark_logo_position' => 'bottom-left',
@@ -177,12 +181,28 @@ class ArtDirectionService
             $parts[] = "A {$intensity} accent of the brand color tinting the lighting and atmosphere";
         }
 
-        // Avoid list
-        $avoid = trim($s['avoid_list'] ?? '');
-        if ($avoid !== '') {
-            $parts[] = 'NEVER include or use these styles: ' . $avoid;
+        $positive = implode('. ', $parts) . '.';
+
+        // Avoid list — treated as a negative prompt of subject matter that must
+        // not appear in the image. Normalised: split on commas, trim, dedupe,
+        // re-join with semicolons so the model sees a clear list of items.
+        $avoidRaw = trim((string)($s['avoid_list'] ?? ''));
+        if ($avoidRaw === '') {
+            return $positive;
         }
 
-        return implode('. ', $parts) . '.';
+        $terms = array_values(array_unique(array_filter(array_map(
+            'trim',
+            preg_split('/[,\n]/', $avoidRaw)
+        ))));
+        if (empty($terms)) {
+            return $positive;
+        }
+
+        $negative = ' STRICT NEGATIVE PROMPT — the image MUST NOT contain any of the following: '
+            . implode('; ', $terms)
+            . '. Do not include, reference, or imply these subjects anywhere in the composition.';
+
+        return $positive . $negative;
     }
 }

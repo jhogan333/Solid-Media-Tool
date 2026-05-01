@@ -100,7 +100,7 @@ class WizardService
         return $result ?: ['error' => 'Could not parse website data. Enter your information manually.'];
     }
 
-    public function suggestThemes(array $businessInfo): array
+    public function suggestThemes(array $businessInfo, array $existingThemeNames = []): array
     {
         $systemPrompt = "You are a social media strategist. Suggest content themes for this business. "
             . "Return valid JSON only — no markdown fences.";
@@ -111,8 +111,19 @@ class WizardService
             . "About: " . ($businessInfo['about'] ?? '') . "\n"
             . "Keywords: " . implode(', ', $businessInfo['keywords'] ?? []) . "\n";
 
-        $userPrompt = $context . "\n"
+        // Tell the LLM which themes already exist so it proactively avoids them.
+        $avoidBlock = '';
+        if (!empty($existingThemeNames)) {
+            $avoidBlock = "\nThe business ALREADY has these themes in their system — do NOT suggest any of these, "
+                . "and do NOT suggest anything that is a close rewording, synonym, or narrower/broader variant of them "
+                . "(e.g. \"IT Tips\" vs \"Tech Tips\", or \"Industry Trends\" vs \"Tech Trends\"):\n"
+                . "- " . implode("\n- ", $existingThemeNames) . "\n"
+                . "Only suggest themes that are clearly and meaningfully different from ALL of the above.\n";
+        }
+
+        $userPrompt = $context . $avoidBlock . "\n"
             . "Suggest 5-7 social media content themes for this business.\n"
+            . "Each theme must be distinct and non-overlapping with the others.\n"
             . "Return a JSON array of objects, each with:\n"
             . "- \"name\": short theme name (2-4 words)\n"
             . "- \"description\": 1-2 sentence description of what content falls under this theme\n"
@@ -155,7 +166,88 @@ class WizardService
         $text = preg_replace('/\s*```$/', '', $text);
         $result = json_decode($text, true);
 
-        return is_array($result) ? $result : [];
+        if (!is_array($result)) return [];
+
+        // Safety net: drop anything too close to an existing theme (or to another
+        // suggestion in the same batch). The LLM was told to avoid duplicates above,
+        // but we still filter programmatically so a bad response can't slip through.
+        return $this->filterDuplicateThemes($result, $existingThemeNames);
+    }
+
+    /**
+     * Remove suggestions that are too similar to existing theme names or to each
+     * other. Uses normalised-token Jaccard overlap plus a similar_text percentage.
+     * A suggestion is rejected if it's ≥60% similar to any kept/existing theme.
+     */
+    private function filterDuplicateThemes(array $suggestions, array $existingNames): array
+    {
+        $kept = [];
+        $keptNorms = array_map([$this, 'normaliseThemeName'], $existingNames);
+
+        foreach ($suggestions as $theme) {
+            $name = trim($theme['name'] ?? '');
+            if ($name === '') continue;
+            $norm = $this->normaliseThemeName($name);
+            if ($norm === '') continue;
+
+            $isDup = false;
+            foreach ($keptNorms as $other) {
+                if ($this->themesAreSimilar($norm, $other)) {
+                    $isDup = true;
+                    break;
+                }
+            }
+            if ($isDup) continue;
+
+            $kept[] = $theme;
+            $keptNorms[] = $norm;
+        }
+        return $kept;
+    }
+
+    /**
+     * Lowercase, strip punctuation, drop filler/stopwords, sort remaining words.
+     * "Tech Tips & Tricks" → "tech tips tricks"
+     * "IT Tips & Tricks"   → "it tips tricks"
+     */
+    private function normaliseThemeName(string $name): string
+    {
+        $name = strtolower($name);
+        $name = preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $name); // drop punctuation
+        $name = preg_replace('/\s+/', ' ', trim($name));
+        if ($name === '') return '';
+        $stop = ['and','or','the','a','an','of','for','to','in','on','with','our','your','we'];
+        $words = array_values(array_filter(
+            explode(' ', $name),
+            function ($w) use ($stop) { return $w !== '' && !in_array($w, $stop, true); }
+        ));
+        sort($words);
+        return implode(' ', $words);
+    }
+
+    /**
+     * Two normalised names are "similar" if they share enough tokens OR if
+     * similar_text reports ≥60% match. Catches synonyms ("IT"/"Tech") as long as
+     * the other words overlap.
+     */
+    private function themesAreSimilar(string $a, string $b): bool
+    {
+        if ($a === '' || $b === '') return false;
+        if ($a === $b) return true;
+
+        // Token Jaccard — e.g. "it tips tricks" vs "tech tips tricks" → 2/4 = 50%
+        $aw = array_unique(explode(' ', $a));
+        $bw = array_unique(explode(' ', $b));
+        $intersect = count(array_intersect($aw, $bw));
+        $union = count(array_unique(array_merge($aw, $bw)));
+        $jaccard = $union > 0 ? $intersect / $union : 0;
+
+        // If the two names share ≥50% of their distinct tokens, they're dupes.
+        if ($jaccard >= 0.5) return true;
+
+        // Fallback: edit-distance similarity on the raw normalised strings.
+        similar_text($a, $b, $pct);
+        return $pct >= 60.0;
     }
 
     public function saveWizardData(int $clientId, array $data): void
@@ -194,7 +286,8 @@ class WizardService
                     'description' => $theme['description'] ?? '',
                     'copy_instructions' => $theme['copy_instructions'] ?? '',
                     'default_hashtags' => $theme['suggested_hashtags'] ?? $theme['default_hashtags'] ?? '',
-                    'required_elements' => ['website' => true, 'cta' => true, 'hashtags' => true],
+                    // createTheme() applies defaults for any missing flags, so omitting this
+                    // will default phone/website/hashtags/cta/emojis to all-on.
                     'sort_order' => $order++,
                     'samples' => [],
                 ]);

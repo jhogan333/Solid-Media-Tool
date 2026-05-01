@@ -263,8 +263,14 @@ kbd {
             <li><a href="#posts">Posts Manager</a></li>
             <li><a href="#editor">Post Editor</a></li>
             <li><a href="#calendar">Calendar</a></li>
-            <li><a href="#reporting">Reports</a></li>
             <li><a href="#reviews">Reviews &amp; Approvals</a></li>
+
+            <li><span class="toc-section-label">Reports</span></li>
+            <li><a href="#reporting">Reports Overview</a></li>
+            <li><a href="#cost-savings">Cost Savings</a></li>
+            <li><a href="#generate-report">Generate Report</a></li>
+            <li><a href="#saved-reports">Saved Reports</a></li>
+            <li><a href="#share-reports">Public Sharing</a></li>
 
             <li><span class="toc-section-label">Strategy &amp; Design</span></li>
             <li><a href="#strategy">Content Strategy</a></li>
@@ -272,9 +278,10 @@ kbd {
             <li><a href="#memory">Content Memory</a></li>
 
             <li><span class="toc-section-label">Administration</span></li>
-            <li><a href="#branding">Branding</a></li>
+            <li><a href="#branding">Branding &amp; Dark Logo</a></li>
             <li><a href="#users">User Management</a></li>
             <li><a href="#smtp">Email Settings</a></li>
+            <li><a href="#activity-log">Activity Log</a></li>
 
             <li><span class="toc-section-label">Reference</span></li>
             <li><a href="#statuses">Post Statuses</a></li>
@@ -319,12 +326,16 @@ kbd {
                     <tr><td><strong>Posts</strong> (approve/reject)</td><td>Yes</td><td>No</td><td>Yes</td></tr>
                     <tr><td><strong>Calendar</strong></td><td>Full</td><td>Full</td><td>View only</td></tr>
                     <tr><td><strong>Reports</strong></td><td>Full</td><td>Full</td><td>View only</td></tr>
+                    <tr><td><strong>Generate Report</strong></td><td>Yes</td><td>Yes</td><td>No</td></tr>
+                    <tr><td><strong>Report Settings</strong> (cost math)</td><td>Yes</td><td>No</td><td>No</td></tr>
+                    <tr><td><strong>Share / Unshare reports</strong></td><td>Yes</td><td>Yes</td><td>No</td></tr>
                     <tr><td><strong>Content Strategy</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
                     <tr><td><strong>Art Direction</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
-                    <tr><td><strong>Branding / Wizard</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
+                    <tr><td><strong>Branding / Wizard / Dark Logo</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
                     <tr><td><strong>User Management</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
                     <tr><td><strong>SMTP Settings</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
                     <tr><td><strong>Reviews Queue</strong></td><td>Yes</td><td>No</td><td>Yes</td></tr>
+                    <tr><td><strong>Activity Log</strong></td><td>Yes</td><td>No</td><td>No</td></tr>
                     <tr><td><strong>Memory</strong></td><td>Yes</td><td>Yes</td><td>No</td></tr>
                 </tbody>
             </table>
@@ -477,8 +488,25 @@ kbd {
             <h2><span class="doc-icon"><i class="fas fa-edit"></i></span> Posts Manager</h2>
             <p class="section-lead">Browse, filter, and manage all posts in one place.</p>
 
-            <h3>Two Views</h3>
-            <p>Toggle between <strong>Table View</strong> (default list) and <strong>Kanban View</strong> (cards organized by platform) using the buttons at the top.</p>
+            <h3>Two Views (Kanban is default)</h3>
+            <p>Toggle between <strong>Kanban View</strong> (the default — cards organized by platform and status) and <strong>Table View</strong> (classic list) using the buttons at the top right.</p>
+
+            <h3>Kanban Buckets</h3>
+            <p>Each platform column (Facebook, LinkedIn) splits into two sub-sections you can click to collapse/expand:</p>
+            <ul>
+                <li><strong>Scheduled &amp; Drafts</strong> (blue accent) — upcoming scheduled posts sorted soonest-first, plus drafts and in-progress posts. Drafts have a dashed orange border with an "Incomplete" badge so you can see at a glance they still need scheduling. Failed posts appear here too with a red accent and "Tap to retry" hint.</li>
+                <li><strong>Published</strong> (green accent) — successfully posted content, sorted newest-first.</li>
+            </ul>
+            <p>Your collapsed/expanded state persists across reloads via browser storage, so you can hide the Published section if you only want to focus on the pipeline.</p>
+
+            <h3>Smart Date Labels</h3>
+            <p>Every card shows both an absolute date and a relative label ("In 3 days", "Tomorrow", "2 days ago", "In 2w"). The relative label is color-coded per status so the timeline is scannable at a glance.</p>
+
+            <h3>Clean Titles</h3>
+            <p>Emojis are automatically stripped from post titles in the display (both kanban cards and the table view) so the UI stays calm and readable. The actual emojis in your post content are preserved and still go out to Facebook/LinkedIn — only the display titles are cleaned.</p>
+
+            <h3>Hover Tooltips</h3>
+            <p>Hover any card (or any row in Table View) to see a floating tooltip with the post's thumbnail image, title, topic, type, and status. The tooltip appears after a 90ms grace period so flicking past rows doesn't spam tooltips.</p>
 
             <h3>Filtering</h3>
             <table class="field-table">
@@ -490,13 +518,10 @@ kbd {
                 </tbody>
             </table>
 
-            <h3>Kanban View</h3>
-            <p>Posts are displayed as cards in platform columns (Facebook, LinkedIn). Each card shows the title, scheduled date, and status. Hover for details, click to edit.</p>
-
             <h3>Actions</h3>
             <ul>
                 <li><strong>New Post</strong> — Opens the Generator.</li>
-                <li><strong>Edit</strong> — Opens the Post Editor.</li>
+                <li><strong>Edit</strong> — Click any row or card to open that post in the editor.</li>
                 <li><strong>Delete</strong> — Removes the post after confirmation.</li>
             </ul>
         </section>
@@ -575,11 +600,11 @@ kbd {
 
         <!-- Reporting -->
         <section id="reporting" class="docs-section">
-            <h2><span class="doc-icon"><i class="fas fa-chart-bar"></i></span> Reports</h2>
-            <p class="section-lead">Track content performance and patterns.</p>
+            <h2><span class="doc-icon"><i class="fas fa-chart-bar"></i></span> Reports Overview</h2>
+            <p class="section-lead">Track content performance, see your cost savings, and generate branded reports for clients.</p>
 
             <h3>Interactive Stat Cards</h3>
-            <p>The five stat cards at the top are <strong>clickable filters</strong>. Click any card to automatically filter the posts table to that status and scroll down to the results.</p>
+            <p>The stat cards at the top are <strong>clickable filters</strong>. Click any card to automatically filter the posts table to that status and scroll down to the results.</p>
 
             <h3>Failed Posts</h3>
             <p>If any posts have failed to publish, a dedicated red-themed section appears at the top showing the post title, platform, error message, and date. You can retry or delete failed posts directly.</p>
@@ -590,12 +615,104 @@ kbd {
             <h3>Analytics</h3>
             <ul>
                 <li><strong>Topic Distribution</strong> — Visual tag cloud showing which topics have been covered and how many times.</li>
-                <li><strong>Platform Breakdown</strong> — Horizontal bar chart showing post distribution across platforms.</li>
+                <li><strong>Platform Breakdown</strong> — Horizontal bar chart showing post distribution across platforms, tinted in your brand color.</li>
             </ul>
 
             <?php if (file_exists(APP_ROOT . '/public/uploads/docs/docs-analytics.jpg')): ?>
             <img src="<?= BASE_URL ?>/uploads/docs/docs-analytics.jpg" alt="Analytics dashboard illustration" class="doc-illustration">
             <?php endif; ?>
+        </section>
+
+        <!-- Cost Savings -->
+        <section id="cost-savings" class="docs-section">
+            <h2><span class="doc-icon"><i class="fas fa-piggy-bank"></i></span> Cost Savings</h2>
+            <p class="section-lead">The Reports page shows how much labor your automation replaces in real dollars.</p>
+
+            <p>Near the top of the Reports page you'll see the <strong>Estimated Savings</strong> card, showing a dollar figure and an hours-saved breakdown. This number is calculated automatically from three inputs:</p>
+            <ul>
+                <li><strong>Post count</strong> — the total of published + scheduled posts</li>
+                <li><strong>Minutes per post</strong> — time a human social media manager would typically spend producing one polished branded post (research, copy, image sourcing/branding, upload to each platform). Default is 30 minutes.</li>
+                <li><strong>Hourly rate</strong> — average social media manager wage for your market. Default is <strong>$29/hour</strong> (roughly the US national average).</li>
+            </ul>
+            <p>Click the <strong>info icon</strong> next to the savings value to open a lightbox that shows the complete math breakdown.</p>
+
+            <h3>Tuning the Math (Admin only)</h3>
+            <p>Admins can click the <strong>Edit math</strong> link to open the Report Settings lightbox and adjust the minutes-per-post and hourly rate to match their local market and workflow. Changes apply immediately to the Reports page and flow through to all future generated reports.</p>
+            <div class="doc-tip"><strong>Tip:</strong> The savings number only counts posts that are published or scheduled — drafts don't count, because drafts don't actually save anyone any time.</div>
+        </section>
+
+        <!-- Generate Report -->
+        <section id="generate-report" class="docs-section">
+            <h2><span class="doc-icon"><i class="fas fa-file-lines"></i></span> Generate Report</h2>
+            <p class="section-lead">Build a branded performance report for any date range — perfect for client deliverables.</p>
+
+            <p>Click the <strong>Generate Report</strong> button in the Cost Savings card to open the report wizard. You'll be asked four things:</p>
+            <ol>
+                <li><strong>Date range</strong> — Last 7 days, Last 30 days, This month, Last month, or a custom range.</li>
+                <li><strong>Report title</strong> — Optional. Leave blank to auto-generate something like "SolidTech Social Report — Apr 2026".</li>
+                <li><strong>Delivery</strong> — Either <em>View &amp; save as PDF</em> (opens the report in a branded page you can print-to-PDF from your browser) or <em>Email to me or others</em> (sends a branded email with a "View Report" link).</li>
+                <li><strong>Confirm</strong> — Click Generate. The report takes 5–15 seconds to build because an AI call is happening in the background to produce the executive summary and helpful tips.</li>
+            </ol>
+
+            <h3>What's In a Report</h3>
+            <ul>
+                <li><strong>Cover page</strong> with your logo, report title, date range, and total posts.</li>
+                <li><strong>Key metrics</strong> — total posts, published, scheduled, failure rate.</li>
+                <li><strong>Cost savings callout</strong> — big dollar number with the full math breakdown.</li>
+                <li><strong>Chart visuals</strong> — posts by platform and top topics (rendered as high-quality PNG charts that print perfectly).</li>
+                <li><strong>Post cards grid</strong> — a branded card for every post in the range (thumbnail, platform pills, title, content, topic, date).</li>
+                <li><strong>AI executive summary</strong> — 2–3 paragraphs of plain-English analysis tailored to the actual numbers.</li>
+                <li><strong>Helpful tips</strong> — 5–8 practical tips for getting the most out of the tool, tailored to your data.</li>
+                <li><strong>Footer</strong> on every page with your dark-variant logo, report title, and date range.</li>
+            </ul>
+
+            <h3>Saving as a PDF</h3>
+            <p>On the report view page, click the <strong>Save as PDF</strong> button in the top toolbar. This opens your browser's print dialog. Choose "Save as PDF" as the destination and click Save. The output is a polished multi-page PDF with proper page breaks, suitable for attaching to emails or sharing with clients.</p>
+
+            <div class="doc-tip"><strong>Tip:</strong> The report is generated once and stored permanently. Re-opening a report later shows exactly the same numbers as the day it was generated — perfect for historical comparisons.</div>
+        </section>
+
+        <!-- Saved Reports -->
+        <section id="saved-reports" class="docs-section">
+            <h2><span class="doc-icon"><i class="fas fa-folder-open"></i></span> Saved Reports</h2>
+            <p class="section-lead">Every generated report is saved automatically. Access them from two places.</p>
+
+            <p>The <strong>Saved Reports</strong> button sits next to the Generate Report button near the top of the Reports page. The count badge on the button shows how many reports exist. Clicking it opens a lightbox with a scrolling list.</p>
+            <ul>
+                <li>Each row shows an <strong>eye icon</strong>, report title, date range, creation timestamp, view count, and a Public/Private badge.</li>
+                <li>Click any row to open that report.</li>
+                <li>A full table of the same reports also appears at the bottom of the Reports page with delete and share actions.</li>
+            </ul>
+            <div class="doc-tip"><strong>Tip:</strong> If you generate many reports, the library keeps the 50 most recent in the lightbox.</div>
+        </section>
+
+        <!-- Public Sharing -->
+        <section id="share-reports" class="docs-section">
+            <h2><span class="doc-icon"><i class="fas fa-share-nodes"></i></span> Public Sharing</h2>
+            <p class="section-lead">Reports are private by default. You can make any report publicly shareable with a single click.</p>
+
+            <h3>Making a Report Public</h3>
+            <p>When viewing a saved report, look for the <strong>lock button</strong> in the toolbar at the top (it sits between the title and the Save as PDF button). Clicking it opens a confirmation lightbox that zooms in with a smooth animation.</p>
+            <ul>
+                <li>If the report is currently <strong>private</strong>, you'll see a red lock icon and a <strong>Make public</strong> button. Clicking it mints a random 32-character share token and gives you a public URL.</li>
+                <li>If the report is currently <strong>public</strong>, you'll see a green unlock icon and the shareable URL with a Copy button. A <strong>Make private</strong> button lets you revoke access at any time.</li>
+            </ul>
+
+            <h3>What Public Means</h3>
+            <p>A public report lives at a URL like <code>https://your-domain.com/shared/abc123...</code>. Anyone with that URL can view the full report <strong>without signing in</strong>. The moment you click "Make private", the old URL stops working immediately.</p>
+
+            <h3>Public View Differences</h3>
+            <p>The public page renders the same report data but with a few extras:</p>
+            <ul>
+                <li><strong>4 interactive Chart.js charts</strong> — posts by platform (doughnut), top topics (bar), posting timeline (line), and status breakdown (pie).</li>
+                <li><strong>LinkedIn/Facebook share preview cards</strong> — when you paste the URL into social media, the preview card shows your logo, report title, and an AI-generated highlight.</li>
+                <li><strong>No sidebar or navigation</strong> — it's a standalone branded page designed for non-technical recipients.</li>
+                <li><strong>A prominent "Save as PDF" button</strong> at the top so recipients can download a copy.</li>
+            </ul>
+
+            <h3>Security</h3>
+            <p>Share tokens are 32-character random hex strings (128 bits of entropy), making them functionally impossible to guess. Even if someone tried every token at 1 million attempts per second, it would take longer than the age of the universe to find a valid one. Revoking a token is instant — the server returns 404 the moment the token is cleared.</p>
+            <div class="doc-tip"><strong>Tip:</strong> The view counter on shared reports is rate-limited to one count per browser session every 5 minutes, so bots and refreshes can't inflate it.</div>
         </section>
 
         <!-- Reviews & Approvals -->
@@ -741,7 +858,8 @@ kbd {
 
             <h3>Uploads</h3>
             <ul>
-                <li><strong>Logo</strong> — Appears in the sidebar and login screen. Formats: JPG, PNG, GIF, WebP, SVG (max 2 MB).</li>
+                <li><strong>Logo</strong> — Appears in the sidebar and login screen. Formats: JPG, PNG, GIF, WebP, SVG (max 2 MB). This is your <em>primary</em> logo (usually a light/white variant for dark backgrounds).</li>
+                <li><strong>Dark Logo</strong> — <span style="color:var(--primary);font-weight:600">New</span> A dark variant of your logo for use on light backgrounds (generated reports, PDFs, shared report pages). Optional — if you don't upload one, the system will automatically darken your primary logo via a CSS filter, which works but isn't as crisp as a purpose-built dark version. Upload if possible.</li>
                 <li><strong>Favicon</strong> — Browser tab icon. Formats: PNG, ICO (max 1 MB).</li>
                 <li><strong>Login Background</strong> — Replaces the gradient on the login page. Recommended: 1920x1080+.</li>
             </ul>
@@ -790,19 +908,57 @@ kbd {
         <!-- SMTP -->
         <section id="smtp" class="docs-section">
             <h2><span class="doc-icon"><i class="fas fa-envelope"></i></span> Email Settings</h2>
-            <p class="section-lead">Configure email delivery for user invitations and notifications.</p>
+            <p class="section-lead">Configure email delivery for user invitations and report notifications.</p>
 
-            <p>Choose from three email providers:</p>
+            <p>Choose from four email providers:</p>
             <table class="field-table">
                 <thead><tr><th>Provider</th><th>Configuration</th></tr></thead>
                 <tbody>
                     <tr><td><strong>SMTP</strong></td><td>Host, port, username, password, encryption (TLS/SSL/None), from name/email.</td></tr>
                     <tr><td><strong>SendGrid</strong></td><td>API key, from name/email.</td></tr>
                     <tr><td><strong>Mailgun</strong></td><td>API key, domain, from name/email.</td></tr>
+                    <tr><td><strong>Emailit</strong></td><td>API key, from name/email.</td></tr>
                 </tbody>
             </table>
 
             <p>Use <strong>Test Connection</strong> to verify your configuration before saving. A test email will be sent to confirm delivery.</p>
+            <div class="doc-tip"><strong>Tip:</strong> The same configuration powers both user invitation emails and the "Report ready" emails sent from the Generate Report wizard.</div>
+        </section>
+
+        <!-- Activity Log -->
+        <section id="activity-log" class="docs-section">
+            <h2><span class="doc-icon"><i class="fas fa-history"></i></span> Activity Log</h2>
+            <p class="section-lead">Admin-only audit trail of everything that happens in the system.</p>
+
+            <p>The Activity Log (Settings &rarr; Activity Log, admin-only) records every meaningful user action. Use it to answer questions like "who deleted that post?", "when did someone last log in?", or "which admin changed that user's role?"</p>
+
+            <h3>What Gets Logged</h3>
+            <ul>
+                <li><strong>Authentication</strong> — successful logins, failed logins (with reason), logouts, self-service password resets, password changes</li>
+                <li><strong>Posts</strong> — created, updated, deleted, scheduled, posted-now, retried, approved, changes-requested</li>
+                <li><strong>Publishing</strong> — auto-publish success or failure from the cron job (actor shows as "System (cron)")</li>
+                <li><strong>Users</strong> — created, updated, deactivated/activated, deleted/restored, permanently deleted, <strong>role changes</strong> (with old and new role captured), admin-initiated password resets, invite sends</li>
+                <li><strong>Settings</strong> — branding, art direction, SMTP, report settings saves (with fields-changed metadata)</li>
+                <li><strong>Reports</strong> — generated, deleted, shared, unshared</li>
+            </ul>
+
+            <h3>Filters</h3>
+            <p>The filter bar at the top of the Activity Log page lets you narrow the view by:</p>
+            <ul>
+                <li><strong>User</strong> — show only events for a specific team member</li>
+                <li><strong>Action</strong> — filter to a specific event type (login_success, post_deleted, role_changed, etc.)</li>
+                <li><strong>Date range</strong> — from/to date inputs</li>
+                <li><strong>Free-text search</strong> — searches the description + user name (wildcards are auto-escaped so you can safely search for text containing <code>%</code> or <code>_</code>)</li>
+            </ul>
+            <p>Every filter state is bookmarkable — the page uses GET parameters so you can share a specific log query URL with another admin.</p>
+
+            <h3>User Activity Summary</h3>
+            <p>At the top of the Activity Log page, cards show each team member's <strong>approximate active time</strong> over the last 30 days, calculated from their login events through their last observed activity. Session durations are clamped at 4 hours each to prevent idle-browser inflation. The card also shows login count and role badge.</p>
+
+            <h3>Event Details</h3>
+            <p>Each event row has an info button that opens a lightbox with the full metadata JSON (e.g. old vs new role for role changes, platform list for published posts, reason for failed logins) plus the event's IP address and user agent for deeper forensics.</p>
+
+            <div class="doc-tip"><strong>Tip:</strong> Logging failures never break the main flow. If the activity_logs table were somehow unavailable, the app would continue working normally — the log entry would just be silently dropped with a PHP error_log note.</div>
         </section>
 
         <!-- Post Statuses -->

@@ -7,7 +7,6 @@ $companyName = htmlspecialchars($brand['company_name'] ?? 'your company');
 $nameGreet = $firstName ? htmlspecialchars($firstName) . ', you' : 'You';
 $logoUrl = $brand['logo_url'] ?? '';
 $primaryColor = $brand['primary_color'] ?? '#6366f1';
-$secondaryColor = $brand['secondary_color'] ?? '#8b5cf6';
 $themes = $themes ?? [];
 $schedule = $schedule ?? [];
 $missingBranding = $brandingService->isProfileComplete($GLOBALS['client_id']);
@@ -117,7 +116,7 @@ $missingBranding = $brandingService->isProfileComplete($GLOBALS['client_id']);
             <div class="plan-el" style="font-size:14px;color:var(--text-secondary);margin-bottom:16px">How many posts do you want to generate?</div>
             <div class="plan-el" style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
                 <button type="button" class="btn btn-ghost btn-sm" onclick="adjustCount(-1)"><i class="fas fa-minus"></i></button>
-                <input type="number" id="planCount" min="1" max="7" value="3" style="width:60px;text-align:center;font-size:20px;font-weight:700;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);padding:8px">
+                <input type="number" id="planCount" min="1" max="7" value="3" style="width:60px;text-align:center;font-size:20px;font-weight:700;border:1px solid var(--form-border);border-radius:var(--radius-sm);background:var(--form-bg);color:var(--form-text);padding:8px">
                 <button type="button" class="btn btn-ghost btn-sm" onclick="adjustCount(1)"><i class="fas fa-plus"></i></button>
             </div>
             <div class="plan-el" style="display:flex;justify-content:flex-end">
@@ -580,7 +579,7 @@ async function generateWeekWithPlan(days, themeIds) {
     <div class="card" style="display:flex;flex-direction:column">
         <div class="card-header">
             <div>
-                <h3 class="card-title"><i class="fas fa-feather-alt" style="color:var(--secondary);margin-right:8px"></i>Generate Single Post</h3>
+                <h3 class="card-title"><i class="fas fa-feather-alt" style="color:var(--primary);margin-right:8px"></i>Generate Single Post</h3>
                 <p class="card-subtitle">One focused post for <?= $companyName ?></p>
             </div>
         </div>
@@ -621,9 +620,15 @@ async function generateWeekWithPlan(days, themeIds) {
 
 <div id="generator-results">
     <div class="card">
-        <div class="empty-state">
-            <i class="fas fa-wand-magic-sparkles"></i>
-            <p><?= $firstName ? "Hey {$firstName}, your" : 'Your' ?> generated posts for <?= $companyName ?> will appear here. Use the controls above to get started.</p>
+        <div class="empty-state" style="padding:48px 24px">
+            <span class="atom-icon atom-icon-lg" aria-hidden="true">
+                <span class="atom-nucleus"></span>
+                <span class="atom-orbit atom-orbit-1"><span class="atom-electron"></span></span>
+                <span class="atom-orbit atom-orbit-2"><span class="atom-electron"></span></span>
+                <span class="atom-orbit atom-orbit-3"><span class="atom-electron"></span></span>
+            </span>
+            <p style="font-size:16px;font-weight:600;margin-top:16px;color:var(--text)">Ready to generate</p>
+            <p style="color:var(--text-muted);font-size:13px;max-width:360px;margin:4px auto 0"><?= $firstName ? "Hey {$firstName}, your" : 'Your' ?> generated posts for <?= $companyName ?> will appear here. Use the controls above to get started.</p>
         </div>
     </div>
 </div>
@@ -835,9 +840,15 @@ function renderResults(posts, append = false) {
     if (!posts.length && !append) {
         container.innerHTML = `
             <div class="card">
-                <div class="empty-state">
-                    <i class="fas fa-wand-magic-sparkles"></i>
-                    <p>No content was generated. Please try again.</p>
+                <div class="empty-state" style="padding:48px 24px">
+                    <span class="atom-icon atom-icon-lg" aria-hidden="true">
+                        <span class="atom-nucleus"></span>
+                        <span class="atom-orbit atom-orbit-1"><span class="atom-electron"></span></span>
+                        <span class="atom-orbit atom-orbit-2"><span class="atom-electron"></span></span>
+                        <span class="atom-orbit atom-orbit-3"><span class="atom-electron"></span></span>
+                    </span>
+                    <p style="font-size:16px;font-weight:600;margin-top:16px;color:var(--text)">No content was generated</p>
+                    <p style="color:var(--text-muted);font-size:13px;max-width:320px;margin:4px auto 0">Please try again.</p>
                 </div>
             </div>`;
         return;
@@ -1195,7 +1206,7 @@ function hideDeletingOverlay() {
 
 function showEmptyGeneratorState() {
     var container = document.getElementById('generator-results');
-    container.innerHTML = '<div class="card"><div class="empty-state"><i class="fas fa-wand-magic-sparkles"></i><p>No generated content. Use the controls above to generate posts.</p></div></div>';
+    container.innerHTML = '<div class="card"><div class="empty-state" style="padding:48px 24px"><span class="atom-icon atom-icon-lg" aria-hidden="true"><span class="atom-nucleus"></span><span class="atom-orbit atom-orbit-1"><span class="atom-electron"></span></span><span class="atom-orbit atom-orbit-2"><span class="atom-electron"></span></span><span class="atom-orbit atom-orbit-3"><span class="atom-electron"></span></span></span><p style="font-size:16px;font-weight:600;margin-top:16px;color:var(--text)">Ready to generate</p><p style="color:var(--text-muted);font-size:13px;max-width:320px;margin:4px auto 0">No generated content. Use the controls above to generate posts.</p></div></div>';
 }
 
 async function regenerateText(uid) {
@@ -1346,15 +1357,24 @@ async function saveDraft(uid, postType, topic, keywords, angle) {
         btn.classList.add('btn-success');
         btn.classList.remove('btn-primary');
 
-        // After 5 seconds: fade out the card, then collapse and remove
+        // After 1 second: fire the brand-color shine wipe, then collapse and remove.
+        // Total time from save → tile gone is ~1s (previously ~5s).
         setTimeout(function() {
-            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease, max-height 0.5s ease 0.4s, margin 0.5s ease 0.4s, padding 0.5s ease 0.4s';
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.95) translateY(-10px)';
-            card.style.maxHeight = card.offsetHeight + 'px';
-            card.style.overflow = 'hidden';
+            // Sweep a brand-color gradient across the whole card like a magic shine
+            var shine = document.createElement('div');
+            shine.className = 'save-shine-wipe';
+            card.style.position = card.style.position || 'relative';
+            card.appendChild(shine);
 
+            // Start the collapse/fade on the next frame so the shine overlay has
+            // a chance to paint and kick off its animation.
             requestAnimationFrame(function() {
+                card.style.transition = 'opacity 0.45s ease, transform 0.45s ease, max-height 0.4s ease 0.15s, margin 0.4s ease 0.15s, padding 0.4s ease 0.15s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95) translateY(-8px)';
+                card.style.maxHeight = card.offsetHeight + 'px';
+                card.style.overflow = 'hidden';
+
                 requestAnimationFrame(function() {
                     card.style.maxHeight = '0px';
                     card.style.marginBottom = '0px';
@@ -1367,8 +1387,8 @@ async function saveDraft(uid, postType, topic, keywords, angle) {
                 card.remove();
                 persistGeneratedPosts();
                 updateResultsCount();
-            }, 1000);
-        }, 5000);
+            }, 650);
+        }, 1000);
     } catch (err) {
         showToast(err.message, 'error');
     } finally {
@@ -1411,19 +1431,18 @@ function showSaveLockAnimation(card) {
         }, 150);
     }
 
-    // Remove after 1.5s
+    // Remove after 650ms so the lock overlay has cleanly exited before the
+    // card fade/shine wipe begins at 1000ms.
     setTimeout(function() {
         if (imgWrap) {
             var o = imgWrap.querySelector('.save-lock-overlay');
-            if (o) { o.classList.add('exiting'); setTimeout(function(){ o.remove(); }, 400); }
+            if (o) { o.classList.add('exiting'); setTimeout(function(){ o.remove(); }, 250); }
         }
         if (bodyArea) {
-            setTimeout(function() {
-                var o = bodyArea.querySelector('.save-lock-overlay');
-                if (o) { o.classList.add('exiting'); setTimeout(function(){ o.remove(); }, 400); }
-            }, 100);
+            var o2 = bodyArea.querySelector('.save-lock-overlay');
+            if (o2) { o2.classList.add('exiting'); setTimeout(function(){ o2.remove(); }, 250); }
         }
-    }, 1500);
+    }, 650);
 }
 
 function escHtml(str) {
@@ -1465,6 +1484,7 @@ function showImageErrorModal(errorMsg, retryCallback) {
         if (retryCallback) retryCallback();
     };
 }
+
 </script>
 <style>
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -1591,5 +1611,60 @@ function showImageErrorModal(errorMsg, retryCallback) {
 @keyframes lockTextIn {
     from { opacity:0; transform:translateY(8px); }
     to { opacity:1; transform:translateY(0); }
+}
+
+/* Brand-color shine wipe that sweeps across the card as it disappears. */
+.save-shine-wipe {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+}
+.save-shine-wipe::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: -60%;
+    width: 55%;
+    height: 140%;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        rgba(var(--primary-rgb), 0.0) 35%,
+        rgba(var(--primary-rgb), 0.55) 48%,
+        rgba(255, 255, 255, 0.85) 50%,
+        rgba(var(--primary-rgb), 0.55) 52%,
+        rgba(var(--primary-rgb), 0.0) 65%,
+        transparent 100%
+    );
+    filter: blur(1px);
+    transform: skewX(-12deg);
+    animation: saveShineSweep 0.85s cubic-bezier(0.55, 0.05, 0.25, 1) forwards;
+}
+.save-shine-wipe::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(var(--primary-rgb), 0.18) 0%,
+        rgba(var(--primary-rgb), 0.08) 40%,
+        transparent 70%
+    );
+    opacity: 0;
+    animation: saveShineGlow 0.85s ease-out forwards;
+}
+@keyframes saveShineSweep {
+    0%   { left: -60%; opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: 120%; opacity: 0; }
+}
+@keyframes saveShineGlow {
+    0%   { opacity: 0; }
+    40%  { opacity: 1; }
+    100% { opacity: 0; }
 }
 </style>

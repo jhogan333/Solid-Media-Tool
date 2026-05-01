@@ -3,7 +3,6 @@ $error = $error ?? '';
 $logoUrl = $branding['logo_url'] ?? '';
 $bgUrl = $branding['login_bg_url'] ?? '';
 $primaryColor = $branding['primary_color'] ?? '#6366f1';
-$secondaryColor = $branding['secondary_color'] ?? '#8b5cf6';
 $companyName = $branding['company_name'] ?? 'SolidTech Social';
 $faviconUrl = $branding['favicon_url'] ?? '';
 $particlesEnabled = $branding['particles_enabled'] ?? 1;

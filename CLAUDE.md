@@ -28,12 +28,16 @@ Three user roles control what each person can see and do:
 | Posts (approve/reject) | Yes | No | Yes |
 | Calendar | Full | Full | View only |
 | Reports | Full | Full | View only |
+| Generate Report wizard | Yes | Yes | No |
+| Report lock/unlock (share) | Yes | Yes | No |
+| Report Settings (cost savings math) | Yes | No | No |
 | Content Strategy | Yes | No | No |
 | Art Direction | Yes | No | No |
-| Branding / Wizard | Yes | No | No |
+| Branding / Wizard / Dark Logo | Yes | No | No |
 | SMTP Settings | Yes | No | No |
 | User Management | Yes | No | No |
 | Reviews Queue | Yes | No | Yes |
+| Activity Log | Yes | No | No |
 | Memory | Yes | Yes | No |
 | Docs | Yes | Yes | Yes |
 
@@ -110,18 +114,22 @@ database/migrations/      → SQL migration files (run manually)
 
 | Table | Purpose |
 |-------|---------|
-| `users` | Auth, roles (admin/editor/reviewer), temp password, tour state |
+| `users` | Auth, roles (admin/editor/reviewer), temp password, tour state, last_login_at |
 | `posts` | All social media posts with status lifecycle |
 | `social_post_logs` | Log of every posting attempt per platform |
-| `branding_settings` | Per-client brand identity (logo, colors, favicon, etc.) |
+| `branding_settings` | Per-client brand identity (logo, **dark_logo_url**, colors, favicon, etc.) |
 | `art_direction_settings` | Per-client image generation style controls |
 | `content_themes` | Reusable content themes with copy instructions |
 | `theme_samples` | Example posts linked to themes |
 | `theme_schedule` | Day-of-week → theme mapping |
 | `content_memory` | Topic/angle deduplication hashes |
-| `smtp_settings` | Email provider config (SMTP/SendGrid/Mailgun) |
+| `image_jobs` | Async Kie.ai image generation job queue |
+| `smtp_settings` | Email provider config (SMTP/SendGrid/Mailgun/Emailit) |
 | `approval_settings` | Per-client approval workflow toggle + min approvals |
 | `post_reviews` | Individual approval/rejection records per post |
+| `activity_logs` | **Phase 1** — admin audit trail of every user action |
+| `report_settings` | **Phase 2** — per-client cost savings math (minutes/post, hourly rate) |
+| `generated_reports` | **Phase 2/3** — saved reports with JSON snapshot + share token |
 
 ---
 
@@ -129,16 +137,19 @@ database/migrations/      → SQL migration files (run manually)
 
 | Service | Purpose |
 |---------|---------|
-| `AIService` | Text generation (OpenRouter), image generation (Kie.ai), watermarking |
-| `BrandingService` | Read/write branding settings, provide brand context to AI |
+| `AIService` | Text generation (OpenRouter) via `chat($system, $user)`, image generation (Kie.ai), watermarking |
+| `BrandingService` | Read/write branding settings (including `dark_logo_url`), provide brand context to AI |
 | `ArtDirectionService` | Image style controls, prompt modifiers, presets, watermark config |
 | `ContentStrategyService` | Theme CRUD, schedule, AI copy critique |
 | `ContentMemoryService` | Deduplication tracking |
 | `ZernioService` | Post to Facebook/LinkedIn via Zernio API |
 | `WizardService` | Onboarding: website scan, theme suggestions, bulk save |
-| `EmailService` | Send branded emails via SMTP/SendGrid/Mailgun |
+| `EmailService` | Send branded emails via SMTP/SendGrid/Mailgun/Emailit |
 | `UserManagementService` | Create/invite/update/deactivate users |
 | `ApprovalService` | Post review workflow |
+| `ActivityLogService` | **Phase 1** — `logLogin/logLogout/logPostAction/logUserAction/logSettingsChange/logSystemAction`. Every write wrapped in try/catch so logging failures never break primary actions. |
+| `ReportSettingsService` | **Phase 2** — cost savings math, `get($cid)` / `save($cid, $data)` / `calculate($postCount, $settings)` |
+| `ReportGeneratorService` | **Phase 2** — `build($cid, $start, $end, $title)` assembles metrics + AI summary + tips, `generateEmailIntro($data, $name)` for personalized report emails |
 
 ---
 
@@ -159,7 +170,7 @@ draft → pending_review (if approval required) → draft (after approved) → s
 
 ## Roadmap
 
-### Current (v2.0) — In Progress
+### v2.0 — Complete ✅
 - [x] Art Direction page (image style controls)
 - [x] Content Strategy page (themes, schedule, AI critique)
 - [x] Setup Wizard (AI website scan, theme suggestions)
@@ -170,12 +181,58 @@ draft → pending_review (if approval required) → draft (after approved) → s
 - [x] Branding save bug fix
 - [x] User management (create, invite, roles)
 - [x] RBAC (role-based nav and access)
-- [x] SMTP settings (multi-provider: SMTP/SendGrid/Mailgun)
+- [x] SMTP settings (multi-provider: SMTP/SendGrid/Mailgun/Emailit)
 - [x] Branded HTML email invitations
 - [x] Temp password + forced change flow
 - [x] Post approval workflow (configurable)
 - [x] Onboarding tour (role-specific, spiral guide)
 - [x] Wizard brand reveal animation
+
+### v2.1 — Phase 1: Activity Log ✅ (shipped)
+- [x] `activity_logs` table + indexed queries
+- [x] `ActivityLogService` with try/catch safety on every write
+- [x] Admin-only `/settings/activity-log` page with filters (user / action / date range / free-text search)
+- [x] Session duration summary (approximate active time per user, clamped at 4h)
+- [x] Hooks across Auth, Post CRUD, Review, Settings, User Management, cron publish
+
+### v2.2 — Phase 2: Cost Savings + PDF Reports ✅ (shipped)
+- [x] `report_settings` table + editable cost savings math (admin only)
+- [x] Cost Savings card on `/reporting` with info-lightbox explaining the math
+- [x] Generate Report wizard (date range, title, view/email delivery)
+- [x] `ReportGeneratorService` with AI executive summary + helpful tips via OpenRouter (fallback on AI failure)
+- [x] Branded HTML report at `/reports/view/{id}` with `@page` print CSS for browser Save-as-PDF
+- [x] AI-personalized email delivery via `report_ready.php` template
+- [x] Dark logo field on Branding page for light-background report pages
+
+### v2.3 — Phase 3: Shared Reports + Charts ✅ (shipped)
+- [x] `generated_reports` table with `share_token` for public sharing
+- [x] Saved Reports library on `/reporting` + scrolling lightbox modal
+- [x] Lock/Unlock toggle on report view (zoom-in/out confirmation lightbox)
+- [x] Public `/shared/{token}` route via `SharedReportController` (no auth)
+- [x] 4 Chart.js charts on public shared page (platform doughnut, topic bar, timeline line, status pie)
+- [x] 2 QuickChart.io PNG charts embedded in Save-as-PDF output
+- [x] Open Graph + Twitter Card meta tags for LinkedIn/Facebook share previews
+- [x] Rate-limited public view counter (one count per session per 5 min)
+
+### v2.x — UI polish shipped alongside Phases 1–3
+- [x] Unified dark topbar with brand gradient (all pages)
+- [x] Global `thead` brand gradient across all tables
+- [x] Row hover image-thumbnail tooltip (Posts, Reports, Dashboard, Activity Log)
+- [x] Row-click navigation on all tables
+- [x] Alternating zebra rows with brand tint
+- [x] Muted brand-color platform pills (facebook/linkedin) — replaces old corporate blues
+- [x] Mobile stat grid always 2×2 (never 1-col)
+- [x] Unified form-field theme via CSS custom properties
+- [x] Custom dropdown widget replacing native `<select>` for brand-color hover/selection
+- [x] Sidebar logout user-card particle effect on hover
+- [x] Logout confirmation modal with zoom in/out animation + thin-stroke door SVG + constellation particles
+- [x] Kanban as default Posts view with collapsible Scheduled/Drafts + Published buckets
+- [x] Brand-gradient kanban column headers with white Facebook/LinkedIn icons
+- [x] Emoji stripping on post titles for clean display (server-side + JS fallback)
+- [x] Magical wand canvas particle system on generator empty state
+- [x] Calendar month header brand gradient + glassy buttons
+- [x] Animated atom-icon component for empty states
+- [x] Saved Reports button + lightbox at top of Reports page
 
 ### Future (v3.0) — Centralized Multi-Tenant
 - Fork repo for centralized version
@@ -183,6 +240,7 @@ draft → pending_review (if approval required) → draft (after approved) → s
 - Per-client API key management (shared or BYOK)
 - Client onboarding and billing
 - 50-100 MSP support
+- Optional server-side PDF rendering via mPDF for true file-attached emails (deferred from Phase 2)
 
 ---
 
@@ -208,4 +266,4 @@ AI Critique behavior:
 
 ---
 
-*Last updated: April 13, 2026*
+*Last updated: April 15, 2026 — Phases 1, 2, 3 all shipped and live in production.*

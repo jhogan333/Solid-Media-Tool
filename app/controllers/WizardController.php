@@ -70,8 +70,17 @@ class WizardController extends Controller
             return;
         }
 
+        // Fetch existing themes so the wizard never re-suggests ones the client
+        // already has (and avoids close-reword variants).
+        $clientId = $GLOBALS['client_id'];
+        $existingThemes = (new ContentStrategyService())->getThemes($clientId);
+        $existingNames = array_map(
+            function ($t) { return (string) ($t['name'] ?? ''); },
+            $existingThemes
+        );
+
         $service = new WizardService();
-        $themes = $service->suggestThemes($input);
+        $themes = $service->suggestThemes($input, $existingNames);
 
         @ob_clean();
         $this->json(['themes' => $themes]);

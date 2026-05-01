@@ -149,18 +149,22 @@ draft → pending_review (if approval required) → draft (after approved) → s
 
 | Table | Purpose |
 |-------|---------|
-| `users` | Auth, roles (admin/editor/reviewer), temp password, tour state, client_id |
+| `users` | Auth, roles (admin/editor/reviewer), temp password, tour state, client_id, last_login_at |
 | `posts` | Social media posts with full status lifecycle |
-| `social_post_logs` | Log of every posting attempt per platform |
-| `branding_settings` | Per-client brand identity (logo, colors, favicon, etc.) |
-| `art_direction_settings` | Per-client image generation style controls |
+| `social_post_logs` | Log of every posting attempt per platform (platform, account_id, zernio_post_id, status, response, error_message) |
+| `branding_settings` | Per-client brand identity (logo_url, **dark_logo_url** for light report pages, colors, favicon, login_bg) |
+| `art_direction_settings` | Per-client image generation style controls (realism level, subject exclusions, watermark config) |
 | `content_themes` | Reusable content themes with copy instructions |
 | `theme_samples` | Example posts linked to themes |
 | `theme_schedule` | Day-of-week → theme mapping |
 | `content_memory` | Topic/angle deduplication hashes |
-| `smtp_settings` | Email provider config (SMTP/SendGrid/Mailgun) |
+| `image_jobs` | Async Kie.ai image generation job queue (polled by the generator) |
+| `smtp_settings` | Email provider config (SMTP/SendGrid/Mailgun/Emailit) |
 | `approval_settings` | Per-client approval workflow toggle + min approvals |
 | `post_reviews` | Individual approval/rejection records per post |
+| `activity_logs` | **Phase 1** — audit trail: client_id, user_id, user_name snapshot, user_role snapshot, action, entity_type, entity_id, description, metadata JSON, ip_address, user_agent, created_at. Indexed on (client_id, created_at), (user_id, created_at), action, (entity_type, entity_id). |
+| `report_settings` | **Phase 2** — per-client cost savings math: minutes_per_post, hourly_rate, currency_symbol. Editable in admin Report Settings lightbox. |
+| `generated_reports` | **Phase 2 + 3** — saved reports: title, date_range_start, date_range_end, report_data JSON snapshot, share_token (32-hex or NULL), shared_at, view_count, created_at. Indexed on (client_id, created_at) and share_token. |
 
 ---
 
@@ -179,37 +183,48 @@ Solid-SocialMedia/
     Model.php              — Base class: find(), create(), update(), delete()
     Database.php           — PDO singleton
   app/
-    controllers/           — One per feature area (16 controllers)
-    models/                — One per DB table (11 models)
-    services/              — Business logic (11 services)
+    controllers/           — One per feature area (19 controllers after Phases 1–3)
+    models/                — One per DB table (14 models after Phases 1–3)
+    services/              — Business logic (14 services after Phases 1–3)
     views/
-      layouts/main.php     — Master layout: role-filtered nav, password lightbox, tour
+      layouts/main.php     — Master layout: role-filtered nav, password lightbox, tour,
+                             logout confirmation modal, custom dropdown enhancer
       auth/login.php       — Login page (glassmorphism, particles)
-      dashboard/           — Dashboard overview
+      dashboard/           — Dashboard overview with row-hover image tooltips
       generator/           — Content generator with Plan & Generate lightbox
-      editor/              — Post editor with AI critique
-      calendar/            — Calendar view
-      reporting/           — Reports and analytics
-      branding/            — Brand settings + wizard button
+                             + magical wand canvas particle empty state
+      editor/              — Post editor with AI critique, post kanban with
+                             collapsible Scheduled/Drafts + Published buckets
+      calendar/            — Calendar view with brand-gradient month header
+      reporting/           — Reports, Cost Savings card, Generate Report wizard,
+                             Saved Reports lightbox, share/unshare flow
+      reports/pdf/view.php — Standalone branded report page with @page print CSS,
+                             lock/unlock toggle, QuickChart.io PNG charts
+      shared/report.php    — Public shared report (no auth) with 4 Chart.js charts + OG tags
+      shared/not_found.php — 404 page for invalid/revoked share tokens
+      branding/            — Brand settings + wizard button + dark logo upload
       art-direction/       — Art direction controls
       content-strategy/    — Theme management + weekly schedule
       wizard/              — Setup wizard with brand reveal animation
       users/               — User management + approval settings
       smtp/                — Email provider configuration
       reviews/             — Post review queue for approvers
-      emails/              — HTML email templates (invitation)
-      components/tour.php  — Onboarding tour engine
+      activity-log/        — Phase 1 admin audit trail with filters + session summary
+      emails/              — HTML email templates (invitation, report_ready)
+      components/tour.php  — Onboarding tour engine (3 role-specific tours)
       memory/              — Content memory viewer
       documentation/       — User-facing docs
   cron/
-    run_scheduled_posts.php
+    run_scheduled_posts.php — Publishes due posts, hooks activity log on publish/fail
   database/
-    migrations/            — 001 (initial), 002 (art direction + themes), 003 (users + SMTP + reviews)
+    migrations/            — 001 initial, 002 art direction + themes,
+                             003 users + SMTP + reviews, 004 activity_logs,
+                             005 report_settings + generated_reports + dark_logo_url
   public/
-    index.php              — Front controller
-    css/app.css            — Main stylesheet
-    js/app.js              — Modal, toast, theme toggle utilities
-    uploads/               — Uploaded files
+    index.php              — Front controller (autoloads all models + services)
+    css/app.css            — Main stylesheet (~2200 lines)
+    js/app.js              — Modal, toast, theme toggle, sidebar constellation canvas
+    uploads/               — Uploaded files (logos, generated images, dark logos)
     favicon.ico            — Browser favicon (from spiral.png)
     favicon-*.png          — Favicon sizes (16, 32, 48)
     apple-touch-icon.png   — iOS icon (180x180)
@@ -221,12 +236,43 @@ Solid-SocialMedia/
 
 ---
 
+## Routes (as of Phase 3)
+
+**Public (no auth):**
+- `GET  /login`, `POST /login`, `POST /login-ajax`, `POST /forgot-password`, `GET /logout`
+- `GET  /shared/{token}` — public shared report view (32-hex token required)
+
+**Auth required:**
+- `GET  /dashboard`, `/generator`, `/posts`, `/posts/edit/{id}`, `/calendar`, `/reviews`, `/branding`, `/art-direction`, `/content-strategy`, `/users`, `/smtp`, `/memory`, `/docs`, `/reporting`
+- Post CRUD: `POST /posts/save`, `/posts/update/{id}`, `/posts/delete/{id}`, `/posts/schedule/{id}`, `/posts/post-now/{id}`, `/posts/retry/{id}`
+- Generator: `POST /generator/week`, `/generator/single`, `/generator/regenerate-text`, `/generator/regenerate-image`, `/generator/start-image-job`, `GET /generator/check-image-jobs`
+- Reviews: `POST /reviews/approve/{id}`, `/reviews/request-changes/{id}`
+- Users: `POST /users/create`, `/users/update/{id}`, `/users/deactivate/{id}`, `/users/activate/{id}`, `/users/delete/{id}`, `/users/restore/{id}`, `/users/permanent-delete/{id}`, `/users/resend-invite/{id}`
+- SMTP: `POST /smtp/save`, `/smtp/test`
+
+**Phase 1 — Activity Log (admin-only):**
+- `GET  /settings/activity-log` — filtered log + session summary
+
+**Phase 2 — Reports:**
+- `POST /reports/generate` — build + save + optional email delivery
+- `GET  /reports/view/{id}` — authed report view (`ReportsController::show`)
+- `GET  /reports/library` — JSON list (for future AJAX uses)
+- `POST /reports/settings/save` — admin cost savings math
+- `POST /reports/delete/{id}` — delete a saved report
+
+**Phase 3 — Share tokens:**
+- `POST /reports/share/{id}` — mint + store share token, return public URL
+- `POST /reports/unshare/{id}` — revoke share token
+
+---
+
 ## Known Issues
 
 1. **Calendar shows single platform** — tooltip reads `post.platform` (singular). Needs update to show all platforms from `platforms` JSON column.
 2. **Instagram & X/Twitter** — Checkbox UI exists but disabled. Needs Zernio account IDs.
 3. **Image URL for dev** — Zernio can't reach localhost images; `resolveImageUrl()` uploads to temp host. Not needed in production.
+4. **Server-side PDF attachment** — Reports are delivered via email as HTML + "View Report" link, not as PDF attachment. Users save as PDF via browser print. A future mPDF integration could add true `.pdf` attachments.
 
 ---
 
-*Last updated: April 13, 2026*
+*Last updated: April 15, 2026 — Phases 1, 2, 3 all complete and live in production.*

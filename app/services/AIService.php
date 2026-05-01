@@ -239,6 +239,17 @@ class AIService
         return $response ?? "Could not regenerate. Check your OpenRouter API key. Original: {$originalContent}";
     }
 
+    /**
+     * Public wrapper for the OpenRouter call — used by services that need
+     * a generic "send a prompt, get a text response" without the post-
+     * generation conventions baked into the other public methods. Returns
+     * null on any failure so callers can degrade gracefully.
+     */
+    public function chat(string $system, string $user): ?string
+    {
+        return $this->callOpenRouter($system, $user);
+    }
+
     private function callOpenRouter(string $system, string $user): ?string
     {
         if (empty($this->openRouterKey)) {

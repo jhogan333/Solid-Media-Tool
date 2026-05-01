@@ -87,6 +87,21 @@ $router->get('/reviews', 'ReviewController', 'index');
 $router->post('/reviews/approve/{id}', 'ReviewController', 'approve');
 $router->post('/reviews/request-changes/{id}', 'ReviewController', 'requestChanges');
 
+// Activity Log (admin only)
+$router->get('/settings/activity-log', 'ActivityLogController', 'index');
+
+// Generated Reports (Phase 2)
+$router->post('/reports/generate',       'ReportsController', 'generate');
+$router->get ('/reports/view/{id}',      'ReportsController', 'show');
+$router->get ('/reports/library',        'ReportsController', 'libraryList');
+$router->post('/reports/settings/save',  'ReportsController', 'saveSettings');
+$router->post('/reports/delete/{id}',    'ReportsController', 'delete');
+
+// Phase 3 — share tokens + public shared view (no auth)
+$router->post('/reports/share/{id}',     'ReportsController', 'share');
+$router->post('/reports/unshare/{id}',   'ReportsController', 'unshare');
+$router->get ('/shared/{token}',         'SharedReportController', 'show');
+
 // Auth extras (password change, tour complete)
 $router->post('/auth/change-password', 'AuthController', 'changePassword');
 $router->post('/auth/complete-tour', 'AuthController', 'completeTour');
@@ -100,3 +115,4 @@ $router->get('/docs', 'DocumentationController', 'index');
 // API endpoints
 $router->get('/api/posts', 'PostController', 'apiList');
 $router->get('/api/stats', 'DashboardController', 'apiStats');
+$router->get('/api/posts-by-status', 'DashboardController', 'apiPostsByStatus');

@@ -1,7 +1,6 @@
 <?php
 $branding = (new BrandingService())->get($GLOBALS['client_id']);
 $primaryColor = $branding['primary_color'] ?? '#6366f1';
-$secondaryColor = $branding['secondary_color'] ?? '#8b5cf6';
 $companyName = $branding['company_name'] ?? APP_NAME;
 $logoUrl = $branding['logo_url'] ?? '';
 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -40,13 +39,10 @@ $isDark = $darkMode === 'true';
 // RBAC — current user role
 $userRole = $_SESSION['role'] ?? 'reviewer';
 
-// Compute RGB values for primary and secondary
+// Compute RGB values for the brand color (used by rgba() in CSS vars)
 $priR = hexdec(substr(ltrim($primaryColor, '#'), 0, 2));
 $priG = hexdec(substr(ltrim($primaryColor, '#'), 2, 2));
 $priB = hexdec(substr(ltrim($primaryColor, '#'), 4, 2));
-$secR = hexdec(substr(ltrim($secondaryColor, '#'), 0, 2));
-$secG = hexdec(substr(ltrim($secondaryColor, '#'), 2, 2));
-$secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
 ?>
 <!DOCTYPE html>
 <html lang="en" data-theme="<?= $isDark ? 'dark' : 'light' ?>">
@@ -66,8 +62,6 @@ $secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
         :root {
             --primary: <?= htmlspecialchars($primaryColor) ?>;
             --primary-rgb: <?= "$priR,$priG,$priB" ?>;
-            --secondary: <?= htmlspecialchars($secondaryColor) ?>;
-            --secondary-rgb: <?= "$secR,$secG,$secB" ?>;
             --sidebar-gradient: linear-gradient(180deg, <?= htmlspecialchars($primaryColor) ?> 0%, #0a0a0a 60%, #000000 100%);
         }
     </style>
@@ -174,6 +168,10 @@ $secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
                         <i class="fas fa-envelope-open-text"></i>
                         <span>Email</span>
                     </a>
+                    <a href="<?= BASE_URL ?>/settings/activity-log" class="nav-item <?= str_starts_with($currentPath, '/settings/activity-log') ? 'active' : '' ?>">
+                        <i class="fas fa-history"></i>
+                        <span>Activity Log</span>
+                    </a>
                 </div>
             </div>
             <?php endif; ?>
@@ -200,7 +198,8 @@ $secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
         </nav>
 
         <div class="sidebar-footer">
-            <div class="sidebar-user-card">
+            <div class="sidebar-user-card" id="sidebarUserCard">
+                <canvas class="logout-particles" id="logoutParticles"></canvas>
                 <div class="sidebar-user-card-inner">
                     <div class="user-monogram" style="background:linear-gradient(135deg, <?= $primaryColor ?>, color-mix(in srgb, <?= $primaryColor ?> 60%, #000))">
                         <?= strtoupper(substr($_SESSION['first_name'] ?? $_SESSION['username'] ?? 'U', 0, 1)) ?>
@@ -210,7 +209,7 @@ $secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
                         <span class="user-identity-role"><?= htmlspecialchars(ucfirst($_SESSION['role'] ?? 'admin')) ?></span>
                     </div>
                 </div>
-                <a href="<?= BASE_URL ?>/logout" class="sidebar-logout-btn" title="Sign out">
+                <a href="<?= BASE_URL ?>/logout" class="sidebar-logout-btn" title="Sign out" onclick="openLogoutConfirm(event)">
                     <i class="fas fa-arrow-right-from-bracket"></i>
                 </a>
             </div>
@@ -231,11 +230,11 @@ $secB = hexdec(substr(ltrim($secondaryColor, '#'), 4, 2));
                     <i class="fas fa-spinner fa-spin" style="margin-right:5px;font-size:10px"></i>
                     <span id="genStatusText">Generating...</span>
                 </div>
-                <button class="theme-toggle-branded" onclick="restartTour()" title="Take a guided tour" id="tourRestartBtn" style="background:<?= $isDark ? 'rgba(255,255,255,0.1)' : $primaryColor ?>">
-                    <i class="fas fa-question" style="color:#fff"></i>
+                <button class="theme-toggle-branded" onclick="restartTour()" title="Take a guided tour" id="tourRestartBtn">
+                    <i class="fas fa-question"></i>
                 </button>
-                <button class="theme-toggle-branded" onclick="toggleTheme()" title="Toggle dark mode" id="themeToggleBtn" style="background:<?= $isDark ? 'rgba(255,255,255,0.1)' : $primaryColor ?>">
-                    <i class="fas <?= $isDark ? 'fa-sun' : 'fa-moon' ?>" id="theme-icon" style="color:#fff"></i>
+                <button class="theme-toggle-branded" onclick="toggleTheme()" title="Toggle dark mode" id="themeToggleBtn">
+                    <i class="fas <?= $isDark ? 'fa-sun' : 'fa-moon' ?>" id="theme-icon"></i>
                 </button>
             </div>
             <style>
@@ -1198,6 +1197,645 @@ window.closeEE = function() {
         }, 250);
     }, 500);
 };
+})();
+</script>
+
+<!-- Logout card particle effect —
+     Mystical brand-color particle network that renders only on hover.
+     Complements the top-left logo constellation in public/js/app.js. -->
+<script>
+(function() {
+    var card = document.getElementById('sidebarUserCard');
+    var canvas = document.getElementById('logoutParticles');
+    if (!card || !canvas) return;
+
+    var ctx = canvas.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var nodes = [];
+    var particles = [];
+    var running = false;
+    var fading = false;
+    var rafId = null;
+    var fadeAlpha = 0; // 0 = fully visible, 1 = fully faded out (canvas gets erased)
+    var lastT = 0;
+
+    // Read the brand color from CSS vars. Fallback to red if unavailable.
+    function readBrand() {
+        var cs = getComputedStyle(document.documentElement);
+        var rgb = cs.getPropertyValue('--primary-rgb').trim();
+        return rgb || '132, 30, 30';
+    }
+    var BRAND_RGB = readBrand();
+
+    function resize() {
+        var rect = card.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function seed() {
+        resize();
+        var w = canvas.width / dpr;
+        var h = canvas.height / dpr;
+        nodes = [];
+        particles = [];
+        // Constellation nodes — slower drifting points with connecting lines
+        for (var i = 0; i < 10; i++) {
+            nodes.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.22,
+                vy: (Math.random() - 0.5) * 0.22,
+                r: Math.random() * 1.4 + 0.6,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+        // Free-floating particles — smaller, wispy specks that drift upward
+        for (var j = 0; j < 14; j++) {
+            particles.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.18,
+                vy: -(Math.random() * 0.22 + 0.05),
+                r: Math.random() * 0.9 + 0.3,
+                life: Math.random(),
+                maxLife: 1 + Math.random() * 1.2
+            });
+        }
+    }
+
+    function step(t) {
+        if (!running && !fading) { rafId = null; return; }
+        if (!lastT) lastT = t;
+        var dt = Math.min(0.05, (t - lastT) / 1000);
+        lastT = t;
+
+        var w = canvas.width / dpr;
+        var h = canvas.height / dpr;
+
+        // Fade handling: if fading out, increase fadeAlpha until 1 then stop
+        if (fading) {
+            fadeAlpha += dt * 1.8;
+            if (fadeAlpha >= 1) {
+                fading = false;
+                ctx.clearRect(0, 0, w, h);
+                rafId = null;
+                lastT = 0;
+                return;
+            }
+        } else {
+            // Running: pull fadeAlpha toward 0 for a smooth re-entry
+            if (fadeAlpha > 0) fadeAlpha = Math.max(0, fadeAlpha - dt * 3);
+        }
+
+        var visibility = 1 - fadeAlpha;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Update + draw nodes
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            n.x += n.vx;
+            n.y += n.vy;
+            n.phase += dt * 1.5;
+            if (n.x < 0 || n.x > w) n.vx *= -1;
+            if (n.y < 0 || n.y > h) n.vy *= -1;
+            n.x = Math.max(0, Math.min(w, n.x));
+            n.y = Math.max(0, Math.min(h, n.y));
+        }
+
+        // Draw connecting lines between near nodes — subtle brand tint
+        var linkDist = 52;
+        for (var i = 0; i < nodes.length; i++) {
+            for (var j = i + 1; j < nodes.length; j++) {
+                var dx = nodes[i].x - nodes[j].x;
+                var dy = nodes[i].y - nodes[j].y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < linkDist) {
+                    var alpha = (1 - dist / linkDist) * 0.32 * visibility;
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.strokeStyle = 'rgba(' + BRAND_RGB + ',' + alpha + ')';
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Draw node dots with a gentle pulse via sin(phase)
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var pulse = 0.55 + 0.45 * (Math.sin(n.phase) * 0.5 + 0.5);
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + BRAND_RGB + ',' + (0.85 * visibility * pulse) + ')';
+            ctx.fill();
+            // Soft halo
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r * 2.6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + BRAND_RGB + ',' + (0.12 * visibility * pulse) + ')';
+            ctx.fill();
+        }
+
+        // Update + draw free particles
+        for (var p = 0; p < particles.length; p++) {
+            var pt = particles[p];
+            pt.x += pt.vx;
+            pt.y += pt.vy;
+            pt.life += dt;
+            if (pt.life > pt.maxLife || pt.y < -5) {
+                pt.x = Math.random() * w;
+                pt.y = h + 3;
+                pt.life = 0;
+                pt.maxLife = 1 + Math.random() * 1.2;
+            }
+            var lifeFade = Math.sin((pt.life / pt.maxLife) * Math.PI); // ease in+out
+            var a = lifeFade * 0.75 * visibility;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(' + BRAND_RGB + ',' + a + ')';
+            ctx.fill();
+        }
+
+        rafId = requestAnimationFrame(step);
+    }
+
+    function start() {
+        if (running) return;
+        running = true;
+        fading = false;
+        seed();
+        lastT = 0;
+        if (!rafId) rafId = requestAnimationFrame(step);
+    }
+    function stop() {
+        if (!running) return;
+        running = false;
+        fading = true; // let the loop fade out gracefully then stop itself
+        if (!rafId) rafId = requestAnimationFrame(step);
+    }
+
+    card.addEventListener('mouseenter', start);
+    card.addEventListener('mouseleave', stop);
+    card.addEventListener('focusin', start);
+    card.addEventListener('focusout', stop);
+
+    // Re-seed if window resizes while hovered
+    window.addEventListener('resize', function() {
+        if (running) seed();
+    });
+
+    // Pause when tab is hidden to save CPU
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            running = false;
+            fading = false;
+            if (rafId) cancelAnimationFrame(rafId);
+            rafId = null;
+            ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        }
+    });
+})();
+</script>
+
+<!-- Custom Dropdown Enhancer -->
+<script>
+/**
+ * Custom dropdown enhancer — replaces native <select class="form-select">
+ * with a custom button + panel so hover/selection can be painted in brand
+ * colors without the "two colors at once" glitch caused by fighting native
+ * <option> rendering. The underlying <select> stays in the DOM so form
+ * submission, .value reads, and onchange handlers all work unchanged.
+ * On mobile (<=640px) we defer to native selects via CSS.
+ */
+(function() {
+    if (window.__cddAttached) return;
+    window.__cddAttached = true;
+
+    var openPanel = null;
+
+    function closeOpen() {
+        if (openPanel) {
+            openPanel.classList.remove('open');
+            openPanel = null;
+        }
+    }
+
+    function enhance(sel) {
+        if (sel.__cddDone) return;
+        if (sel.multiple) return; // skip multi-selects
+        sel.__cddDone = true;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'cdd-wrap';
+        // If the native select has a flex/min-width parent, honor it
+        if (sel.style.minWidth) wrap.style.minWidth = sel.style.minWidth;
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cdd-btn';
+        btn.setAttribute('aria-haspopup', 'listbox');
+        btn.setAttribute('aria-expanded', 'false');
+
+        var panel = document.createElement('div');
+        panel.className = 'cdd-panel';
+        panel.setAttribute('role', 'listbox');
+
+        // Move the native select inside the wrap and hide it (CSS)
+        sel.parentNode.insertBefore(wrap, sel);
+        sel.classList.add('cdd-native');
+        wrap.appendChild(sel);
+        wrap.appendChild(btn);
+        wrap.appendChild(panel);
+
+        function rebuildOptions() {
+            panel.innerHTML = '';
+            Array.prototype.forEach.call(sel.options, function(opt, idx) {
+                var el = document.createElement('div');
+                el.className = 'cdd-opt';
+                el.setAttribute('role', 'option');
+                el.setAttribute('data-value', opt.value);
+                el.setAttribute('data-idx', String(idx));
+                el.textContent = opt.textContent;
+                if (opt.disabled) {
+                    el.style.opacity = '0.5';
+                    el.style.pointerEvents = 'none';
+                }
+                if (idx === sel.selectedIndex) el.classList.add('selected');
+                el.addEventListener('mouseenter', function() {
+                    panel.querySelectorAll('.cdd-opt.active').forEach(function(x) { x.classList.remove('active'); });
+                    el.classList.add('active');
+                });
+                el.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    selectIdx(idx);
+                    close();
+                });
+                panel.appendChild(el);
+            });
+            updateLabel();
+        }
+
+        function updateLabel() {
+            var opt = sel.options[sel.selectedIndex];
+            btn.textContent = opt ? opt.textContent : '';
+        }
+
+        function selectIdx(idx) {
+            if (idx < 0 || idx >= sel.options.length) return;
+            if (sel.selectedIndex === idx) {
+                updateLabel();
+                return;
+            }
+            sel.selectedIndex = idx;
+            updateLabel();
+            panel.querySelectorAll('.cdd-opt.selected').forEach(function(x) { x.classList.remove('selected'); });
+            var newEl = panel.querySelector('.cdd-opt[data-idx="' + idx + '"]');
+            if (newEl) newEl.classList.add('selected');
+            // Fire change event so existing onchange handlers run
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            sel.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        function positionPanel() {
+            var rect = btn.getBoundingClientRect();
+            var vh = window.innerHeight;
+            panel.style.width = rect.width + 'px';
+            // Prefer below, flip above if there's not enough room
+            var spaceBelow = vh - rect.bottom - 12;
+            var spaceAbove = rect.top - 12;
+            var maxH = 280;
+            if (spaceBelow >= Math.min(maxH, 160) || spaceBelow >= spaceAbove) {
+                panel.style.top = (rect.bottom + 4) + 'px';
+                panel.style.maxHeight = Math.min(maxH, Math.max(120, spaceBelow)) + 'px';
+            } else {
+                var h = Math.min(maxH, Math.max(120, spaceAbove));
+                panel.style.top = (rect.top - 4 - h) + 'px';
+                panel.style.maxHeight = h + 'px';
+            }
+            panel.style.left = rect.left + 'px';
+        }
+        function open() {
+            if (openPanel === wrap) return;
+            closeOpen();
+            rebuildOptions(); // rebuild in case options changed dynamically
+            wrap.classList.add('open');
+            btn.setAttribute('aria-expanded', 'true');
+            openPanel = wrap;
+            positionPanel();
+            // Highlight the currently-selected option as active
+            var selEl = panel.querySelector('.cdd-opt.selected');
+            if (selEl) {
+                panel.querySelectorAll('.cdd-opt.active').forEach(function(x) { x.classList.remove('active'); });
+                selEl.classList.add('active');
+                selEl.scrollIntoView({ block: 'nearest' });
+            }
+        }
+        function close() {
+            wrap.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+            if (openPanel === wrap) openPanel = null;
+        }
+        function toggle() {
+            if (wrap.classList.contains('open')) close(); else open();
+        }
+
+        btn.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            toggle();
+        });
+        btn.addEventListener('keydown', function(ev) {
+            if (ev.key === 'ArrowDown' || ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                if (!wrap.classList.contains('open')) open();
+                else {
+                    var active = panel.querySelector('.cdd-opt.active');
+                    var next = active && active.nextElementSibling;
+                    if (next) {
+                        panel.querySelectorAll('.cdd-opt.active').forEach(function(x) { x.classList.remove('active'); });
+                        next.classList.add('active');
+                        next.scrollIntoView({ block: 'nearest' });
+                    }
+                }
+            } else if (ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                if (!wrap.classList.contains('open')) { open(); return; }
+                var active = panel.querySelector('.cdd-opt.active');
+                var prev = active && active.previousElementSibling;
+                if (prev) {
+                    panel.querySelectorAll('.cdd-opt.active').forEach(function(x) { x.classList.remove('active'); });
+                    prev.classList.add('active');
+                    prev.scrollIntoView({ block: 'nearest' });
+                }
+            } else if (ev.key === 'Enter') {
+                if (wrap.classList.contains('open')) {
+                    var active = panel.querySelector('.cdd-opt.active');
+                    if (active) {
+                        selectIdx(parseInt(active.getAttribute('data-idx'), 10));
+                        close();
+                    }
+                }
+            } else if (ev.key === 'Escape') {
+                close();
+            }
+        });
+
+        // If the underlying <select> has its value changed programmatically
+        // (e.g. filterPosts(), DOM manipulation), resync our label.
+        var observer = new MutationObserver(function() { updateLabel(); });
+        observer.observe(sel, { attributes: true, childList: true, subtree: true });
+
+        rebuildOptions();
+    }
+
+    function scan(root) {
+        (root || document).querySelectorAll('select.form-select:not(.cdd-native)').forEach(enhance);
+    }
+
+    // Close any open panel on outside click, Escape, resize, or scroll
+    // (scroll close is important because the panel is position:fixed and
+    // won't follow the button if the page scrolls under it).
+    document.addEventListener('click', function() { closeOpen(); });
+    document.addEventListener('keydown', function(ev) { if (ev.key === 'Escape') closeOpen(); });
+    window.addEventListener('resize', function() { closeOpen(); });
+    window.addEventListener('scroll', function() { closeOpen(); }, true);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { scan(); });
+    } else {
+        scan();
+    }
+
+    // Expose a hook so dynamically-added selects can be enhanced on demand
+    window.enhanceDropdowns = function(root) { scan(root); };
+})();
+</script>
+
+<!-- Logout Confirmation Modal -->
+<div id="logoutConfirmModal" class="logout-confirm-backdrop" onclick="if(event.target===this)closeLogoutConfirm()" aria-hidden="true">
+    <div class="logout-confirm-card" role="dialog" aria-labelledby="logoutConfirmTitle" aria-modal="true">
+        <!-- Particle canvas — same aesthetic as sidebar-user-card hover -->
+        <canvas class="logout-modal-particles" id="logoutModalParticles" aria-hidden="true"></canvas>
+        <div class="logout-confirm-icon-wrap">
+            <!-- Thin-stroke door-open SVG, 3x the previous 42px icon -->
+            <svg class="logout-confirm-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                    <!-- Floor line -->
+                    <line x1="12" y1="108" x2="108" y2="108" opacity="0.55"/>
+                    <!-- Door frame left pillar -->
+                    <line x1="22" y1="14" x2="22" y2="108"/>
+                    <!-- Door frame right pillar -->
+                    <line x1="82" y1="22" x2="82" y2="108"/>
+                    <!-- Door frame top -->
+                    <line x1="22" y1="14" x2="82" y2="22"/>
+                    <!-- Open door (swung slightly outward) -->
+                    <path d="M34 28 L68 18 L68 104 L34 112 Z"/>
+                    <!-- Doorknob -->
+                    <circle cx="40" cy="68" r="2.5" fill="currentColor" stroke="none"/>
+                    <!-- Motion lines suggesting the door just opened -->
+                    <line x1="90" y1="50" x2="104" y2="46" opacity="0.6"/>
+                    <line x1="90" y1="60" x2="106" y2="60" opacity="0.45"/>
+                    <line x1="90" y1="70" x2="104" y2="74" opacity="0.3"/>
+                </g>
+            </svg>
+        </div>
+        <h2 id="logoutConfirmTitle" class="logout-confirm-title">Sign out?</h2>
+        <p class="logout-confirm-body">You'll need to sign in again to continue where you left off.</p>
+        <div class="logout-confirm-actions">
+            <button type="button" class="btn-logout-cancel" onclick="closeLogoutConfirm()">Cancel</button>
+            <button type="button" class="btn-logout-yes" onclick="confirmLogout()">Yes, sign out</button>
+        </div>
+    </div>
+</div>
+<script>
+function openLogoutConfirm(ev) {
+    if (ev) ev.preventDefault();
+    var m = document.getElementById('logoutConfirmModal');
+    if (!m) return;
+    m.classList.add('active');
+    m.setAttribute('aria-hidden', 'false');
+    if (window.startLogoutModalParticles) window.startLogoutModalParticles();
+    // Focus the Cancel button after the entrance animation completes
+    setTimeout(function() {
+        var cancelBtn = m.querySelector('.btn-logout-cancel');
+        if (cancelBtn) cancelBtn.focus();
+    }, 1000);
+    return false;
+}
+function closeLogoutConfirm() {
+    var m = document.getElementById('logoutConfirmModal');
+    if (!m) return;
+    m.classList.remove('active');
+    m.setAttribute('aria-hidden', 'true');
+    if (window.stopLogoutModalParticles) window.stopLogoutModalParticles();
+}
+function confirmLogout() {
+    // Let the exit animation play briefly before navigating
+    closeLogoutConfirm();
+    setTimeout(function() {
+        window.location.href = '<?= BASE_URL ?>/logout';
+    }, 450);
+}
+// Escape closes the modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var m = document.getElementById('logoutConfirmModal');
+        if (m && m.classList.contains('active')) closeLogoutConfirm();
+    }
+});
+
+// ---- Logout modal particle system ----
+// Same constellation + floating particle pattern as the sidebar user card
+// hover effect, but rendered in white so it reads against the brand-red
+// gradient card. Runs only while the modal is open.
+(function() {
+    var canvas = document.getElementById('logoutModalParticles');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var nodes = [];
+    var particles = [];
+    var running = false;
+    var rafId = null;
+    var lastT = 0;
+
+    function resize() {
+        var rect = canvas.getBoundingClientRect();
+        canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function seed() {
+        resize();
+        var w = canvas.width / dpr;
+        var h = canvas.height / dpr;
+        nodes = [];
+        particles = [];
+        // Constellation nodes — 16 white drifting points with connecting lines
+        for (var i = 0; i < 16; i++) {
+            nodes.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: (Math.random() - 0.5) * 0.3,
+                r: Math.random() * 1.8 + 0.8,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+        // Free-floating wispy particles
+        for (var j = 0; j < 22; j++) {
+            particles.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.22,
+                vy: -(Math.random() * 0.28 + 0.06),
+                r: Math.random() * 1.2 + 0.35,
+                life: Math.random(),
+                maxLife: 1.2 + Math.random() * 1.4
+            });
+        }
+    }
+
+    function step(t) {
+        if (!running) { rafId = null; return; }
+        if (!lastT) lastT = t;
+        var dt = Math.min(0.05, (t - lastT) / 1000);
+        lastT = t;
+        var w = canvas.width / dpr;
+        var h = canvas.height / dpr;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Update + draw nodes
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            n.x += n.vx;
+            n.y += n.vy;
+            n.phase += dt * 1.5;
+            if (n.x < 0 || n.x > w) n.vx *= -1;
+            if (n.y < 0 || n.y > h) n.vy *= -1;
+            n.x = Math.max(0, Math.min(w, n.x));
+            n.y = Math.max(0, Math.min(h, n.y));
+        }
+
+        // Connecting lines between near nodes
+        var linkDist = 95;
+        for (var i = 0; i < nodes.length; i++) {
+            for (var j = i + 1; j < nodes.length; j++) {
+                var dx = nodes[i].x - nodes[j].x;
+                var dy = nodes[i].y - nodes[j].y;
+                var dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < linkDist) {
+                    var alpha = (1 - dist / linkDist) * 0.35;
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.strokeStyle = 'rgba(255,255,255,' + alpha + ')';
+                    ctx.lineWidth = 0.75;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Draw node dots with pulse
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var pulse = 0.55 + 0.45 * (Math.sin(n.phase) * 0.5 + 0.5);
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r * pulse, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,' + (0.9 * pulse) + ')';
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, n.r * 2.8, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,' + (0.14 * pulse) + ')';
+            ctx.fill();
+        }
+
+        // Floating particles
+        for (var p = 0; p < particles.length; p++) {
+            var pt = particles[p];
+            pt.x += pt.vx;
+            pt.y += pt.vy;
+            pt.life += dt;
+            if (pt.life > pt.maxLife || pt.y < -5) {
+                pt.x = Math.random() * w;
+                pt.y = h + 3;
+                pt.life = 0;
+                pt.maxLife = 1.2 + Math.random() * 1.4;
+            }
+            var lifeFade = Math.sin((pt.life / pt.maxLife) * Math.PI);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,' + (lifeFade * 0.8) + ')';
+            ctx.fill();
+        }
+
+        rafId = requestAnimationFrame(step);
+    }
+
+    window.startLogoutModalParticles = function() {
+        if (running) return;
+        running = true;
+        lastT = 0;
+        seed();
+        if (!rafId) rafId = requestAnimationFrame(step);
+    };
+    window.stopLogoutModalParticles = function() {
+        running = false;
+        // Let the current frame finish; the next call short-circuits
+        setTimeout(function() {
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+        }, 1000);
+    };
 })();
 </script>
 </body>

@@ -26,6 +26,9 @@ require_once APP_ROOT . '/app/models/ThemeSchedule.php';
 require_once APP_ROOT . '/app/models/SmtpSetting.php';
 require_once APP_ROOT . '/app/models/ApprovalSetting.php';
 require_once APP_ROOT . '/app/models/PostReview.php';
+require_once APP_ROOT . '/app/models/ActivityLog.php';
+require_once APP_ROOT . '/app/models/ReportSettings.php';
+require_once APP_ROOT . '/app/models/GeneratedReport.php';
 
 // Load services
 require_once APP_ROOT . '/app/services/AIService.php';
@@ -40,6 +43,9 @@ require_once APP_ROOT . '/app/services/EmailService.php';
 require_once APP_ROOT . '/app/services/UserManagementService.php';
 require_once APP_ROOT . '/app/services/ApprovalService.php';
 require_once APP_ROOT . '/app/services/ProfilePdfService.php';
+require_once APP_ROOT . '/app/services/ActivityLogService.php';
+require_once APP_ROOT . '/app/services/ReportSettingsService.php';
+require_once APP_ROOT . '/app/services/ReportGeneratorService.php';
 
 // Single client mode
 $GLOBALS['client_id'] = CLIENT_ID;

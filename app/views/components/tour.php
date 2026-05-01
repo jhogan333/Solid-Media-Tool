@@ -7,60 +7,87 @@ $tourCompany = htmlspecialchars($tourBrand['company_name'] ?? 'SolidTech');
 $faviconUrl = BASE_URL . '/favicon-48.png';
 
 // Steps: target (CSS selector), title, text, url (page to navigate to), group (accordion 1/2/3)
+// Tour selectors updated April 2026 after Phases 1-3 rollout — some old
+// selectors (.main-content .card) were too generic; new ones point at
+// specific IDs/classes that survive future refactors.
+
 $adminSteps = [
-    // Dashboard
-    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Dashboard', 'text' => 'Your command center. Let\'s take a look at what\'s here.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
-    ['target' => '.stats-grid', 'title' => 'Live Stats', 'text' => 'These cards show your content pipeline at a glance: total posts, scheduled, published, and drafts. Hover any card to see weekly trends.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    ['target' => '.quick-actions-grid', 'title' => 'Quick Actions', 'text' => 'Jump straight to the most-used features. Generate content, check the calendar, or view reports — one click away.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Generator
-    ['target' => '.nav-item[href*="/generator"]', 'title' => 'Content Generator', 'text' => 'This is where the magic happens. AI creates on-brand content for you.', 'url' => '/generator', 'group' => 1, 'position' => 'right'],
-    ['target' => '.main-content .card', 'title' => 'Plan & Generate', 'text' => 'Generate a full week of content or single posts. The AI uses your themes, brand voice, and content memory to create unique posts every time.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Posts
-    ['target' => '.nav-item[href*="/posts"]', 'title' => 'Posts Manager', 'text' => 'Browse and manage all your content here.', 'url' => '/posts', 'group' => 1, 'position' => 'right'],
-    // Calendar
+    // ── DASHBOARD ──
+    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Welcome to your command center', 'text' => 'This is the Dashboard — the first screen you see after logging in. Let\'s take a quick tour.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
+    ['target' => '.stats-grid', 'title' => 'Live stats at a glance', 'text' => 'These cards show your content pipeline: total posts, scheduled, published, and drafts. Click any card to filter the Posts page to that status.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+    ['target' => '.quick-actions-grid', 'title' => 'Quick actions', 'text' => 'Jump straight to the most-used features. Generate content, check the calendar, or view reports — one click away.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+
+    // ── GENERATOR ──
+    ['target' => '.nav-item[href*="/generator"]', 'title' => 'Content Generator', 'text' => 'Where AI creates on-brand content for you.', 'url' => '/generator', 'group' => 1, 'position' => 'right'],
+    ['target' => '#btn-generate-single', 'title' => 'Plan & Generate', 'text' => 'Generate a full week of posts or a single focused post. The AI uses your themes, brand voice, and content memory to create unique content every time.', 'url' => null, 'group' => 0, 'position' => 'top'],
+
+    // ── POSTS ──
+    ['target' => '.nav-item[href*="/posts"]', 'title' => 'Posts Manager', 'text' => 'Browse and manage all your content.', 'url' => '/posts', 'group' => 1, 'position' => 'right'],
+    ['target' => '#kanbanView', 'title' => 'Kanban view (default)', 'text' => 'Posts are grouped by platform and split into "Scheduled & Drafts" (blue) and "Published" (green) buckets. Click any bucket header to collapse/expand it. Drafts appear with a dashed orange border so you can spot incomplete posts at a glance.', 'url' => null, 'group' => 0, 'position' => 'top'],
+
+    // ── CALENDAR ──
     ['target' => '.nav-item[href*="/calendar"]', 'title' => 'Content Calendar', 'text' => 'Visual monthly view of your schedule. Color-coded dots show each post\'s status. Hover for previews, click for details.', 'url' => '/calendar', 'group' => 1, 'position' => 'right'],
-    // Reports
-    ['target' => '.nav-item[href*="/reporting"]', 'title' => 'Reports & Analytics', 'text' => 'Track performance, manage failed posts, and export data. Click the stat cards to instantly filter results.', 'url' => '/reporting', 'group' => 1, 'position' => 'right'],
-    // Strategy
-    ['target' => '.nav-item[href*="/content-strategy"]', 'title' => 'Content Strategy', 'text' => 'Define themes, assign them to days, and give the AI copy instructions and sample posts to follow.', 'url' => '/content-strategy', 'group' => 2, 'position' => 'right'],
-    ['target' => '.theme-grid', 'title' => 'Your Content Themes', 'text' => 'Each theme card defines a content category. The AI follows the copy instructions and required elements you set here when generating posts.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Art Direction
-    ['target' => '.nav-item[href*="/art-direction"]', 'title' => 'Art Direction', 'text' => 'Control how AI-generated images look: style, realism, mood, watermarks, and quick presets.', 'url' => '/art-direction', 'group' => 2, 'position' => 'right'],
-    // Branding
-    ['target' => '.nav-item[href*="/branding"]', 'title' => 'Branding', 'text' => 'Set your logo, colors, favicon, contact info, and API keys. Everything here applies platform-wide.', 'url' => '/branding', 'group' => 2, 'position' => 'right'],
-    // Users
+
+    // ── REPORTS ──
+    ['target' => '.nav-item[href*="/reporting"]', 'title' => 'Reports & Analytics', 'text' => 'Track performance, manage failed posts, and generate branded client reports.', 'url' => '/reporting', 'group' => 1, 'position' => 'right'],
+    ['target' => '#savings-card', 'title' => 'Estimated cost savings', 'text' => 'This card shows how much labor your automation replaces in real dollars. Click the info icon to see the math, or "Edit math" to tune the minutes-per-post and hourly rate for your market.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+    ['target' => '#savings-card .btn-primary', 'title' => 'Generate a branded report', 'text' => 'Click here to open the report wizard. Pick a date range, choose view-or-email delivery, and the AI will build a full branded report in about 10 seconds — complete with charts, post cards, executive summary, and helpful tips.', 'url' => null, 'group' => 0, 'position' => 'left'],
+
+    // ── STRATEGY + DESIGN ──
+    ['target' => '.nav-item[href*="/content-strategy"]', 'title' => 'Content Strategy', 'text' => 'Define themes, assign them to days of the week, and give the AI copy instructions and sample posts to follow.', 'url' => '/content-strategy', 'group' => 2, 'position' => 'right'],
+    ['target' => '.nav-item[href*="/art-direction"]', 'title' => 'Art Direction', 'text' => 'Control how AI-generated images look: realism level, subject exclusions, watermark placement, and quick presets.', 'url' => '/art-direction', 'group' => 2, 'position' => 'right'],
+
+    // ── ADMIN SETTINGS ──
+    ['target' => '.nav-item[href*="/branding"]', 'title' => 'Branding', 'text' => 'Set your logo (plus a dark logo variant for reports), colors, favicon, contact info, and API keys. Everything here applies platform-wide.', 'url' => '/branding', 'group' => 2, 'position' => 'right'],
     ['target' => '.nav-item[href*="/users"]', 'title' => 'User Management', 'text' => 'Invite Editors and Reviewers, configure the approval workflow, and manage your team.', 'url' => '/users', 'group' => 2, 'position' => 'right'],
-    // Finale
-    ['target' => null, 'title' => 'You\'re all set!', 'text' => 'You have full control over ' . $tourCompany . '\'s social media engine. Head to the Generator to create your first batch of content!', 'url' => null, 'group' => 0, 'position' => 'center'],
+    ['target' => '.nav-item[href*="/smtp"]', 'title' => 'Email settings', 'text' => 'Configure your email provider for user invitations and report delivery emails. Supports SMTP, SendGrid, Mailgun, and Emailit.', 'url' => '/smtp', 'group' => 2, 'position' => 'right'],
+    ['target' => '.nav-item[href*="/settings/activity-log"]', 'title' => 'Activity Log', 'text' => 'Admin-only audit trail. Every login, post edit, role change, setting update, and publish is logged here. Filter by user, action type, or date range to answer "who did what, when?"', 'url' => '/settings/activity-log', 'group' => 2, 'position' => 'right'],
+
+    // ── FINALE ──
+    ['target' => null, 'title' => 'You\'re all set!', 'text' => 'You have full control over ' . $tourCompany . '\'s social media engine. Head to the Generator to create your first batch of content, then generate a report to show off the results.', 'url' => null, 'group' => 0, 'position' => 'center'],
 ];
 
 $editorSteps = [
-    // Dashboard
-    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Dashboard', 'text' => 'Your home base. Let\'s see what\'s here.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
-    ['target' => '.stats-grid', 'title' => 'Your Content Stats', 'text' => 'Track your posts at a glance: how many are scheduled, published, or still in draft. Hover to see weekly trends.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Generator
+    // ── DASHBOARD ──
+    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Welcome to your home base', 'text' => 'The Dashboard is where you\'ll land every time you log in. Let\'s see what\'s here.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
+    ['target' => '.stats-grid', 'title' => 'Your content stats', 'text' => 'Track your posts at a glance: how many are scheduled, published, or still in draft. Click any card to filter the Posts page.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+
+    // ── GENERATOR ──
     ['target' => '.nav-item[href*="/generator"]', 'title' => 'Content Generator', 'text' => 'Create AI-powered content. Generate a full week or individual posts.', 'url' => '/generator', 'group' => 1, 'position' => 'right'],
-    ['target' => '.main-content .card', 'title' => 'AI-Powered Creation', 'text' => 'Choose your platforms, pick a topic, and let the AI generate on-brand posts. Edit the results before saving as drafts.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Posts
-    ['target' => '.nav-item[href*="/posts"]', 'title' => 'Posts Manager', 'text' => 'Browse all posts in table or kanban view. Edit, schedule, or submit for review.', 'url' => '/posts', 'group' => 1, 'position' => 'right'],
-    // Calendar
+    ['target' => '#btn-generate-single', 'title' => 'AI-powered creation', 'text' => 'Pick a topic and post type, let the AI generate on-brand copy, and edit the result before saving as a draft.', 'url' => null, 'group' => 0, 'position' => 'top'],
+
+    // ── POSTS ──
+    ['target' => '.nav-item[href*="/posts"]', 'title' => 'Posts Manager', 'text' => 'Browse all your content in kanban or table view.', 'url' => '/posts', 'group' => 1, 'position' => 'right'],
+    ['target' => '#kanbanView', 'title' => 'Scheduled & Drafts vs Published', 'text' => 'The board splits into two collapsible buckets per platform: upcoming work on top, published posts below. Drafts show as dashed orange cards so you can see what still needs to be scheduled.', 'url' => null, 'group' => 0, 'position' => 'top'],
+
+    // ── CALENDAR ──
     ['target' => '.nav-item[href*="/calendar"]', 'title' => 'Content Calendar', 'text' => 'See your schedule visually. Spot gaps and plan ahead. Color-coded by status.', 'url' => '/calendar', 'group' => 1, 'position' => 'right'],
-    // Reports
-    ['target' => '.nav-item[href*="/reporting"]', 'title' => 'Reports', 'text' => 'Track which posts went out and spot any failures. Filter and export data.', 'url' => '/reporting', 'group' => 1, 'position' => 'right'],
-    // Finale
+
+    // ── REPORTS ──
+    ['target' => '.nav-item[href*="/reporting"]', 'title' => 'Reports', 'text' => 'Track which posts went out and spot any failures. You can also generate branded reports from here.', 'url' => '/reporting', 'group' => 1, 'position' => 'right'],
+    ['target' => '#savings-card', 'title' => 'Cost savings', 'text' => 'See how much labor the automated workflow is saving in real dollars, based on the math your admin has configured.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+    ['target' => '#savings-card .btn-primary', 'title' => 'Generate a client report', 'text' => 'Click here to build a branded report for any date range. Deliver it by email or view it directly and save as PDF — perfect for client updates.', 'url' => null, 'group' => 0, 'position' => 'left'],
+
+    // ── FINALE ──
     ['target' => null, 'title' => 'Ready to create!', 'text' => 'Head to the Generator to start making content for ' . $tourCompany . '. Happy posting!', 'url' => null, 'group' => 0, 'position' => 'center'],
 ];
 
 $reviewerSteps = [
-    // Dashboard
-    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Dashboard', 'text' => 'Your overview of the content pipeline. Let\'s look around.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
-    ['target' => '.stats-grid', 'title' => 'Content Overview', 'text' => 'See the big picture: how many posts are in the pipeline, what\'s scheduled, and what\'s been published.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Reviews
-    ['target' => '.nav-item[href*="/reviews"]', 'title' => 'Review Queue', 'text' => 'This is your main workspace. Posts needing approval appear here.', 'url' => '/reviews', 'group' => 1, 'position' => 'right'],
-    ['target' => '.main-content', 'title' => 'Approve or Request Changes', 'text' => 'Each post shows its content preview and approval progress. Click Approve to give the green light, or Request Changes to send feedback to the editor.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
-    // Calendar
-    ['target' => '.nav-item[href*="/calendar"]', 'title' => 'Content Calendar', 'text' => 'See what\'s scheduled and when posts are going out across all platforms.', 'url' => '/calendar', 'group' => 1, 'position' => 'right'],
-    // Finale
+    // ── DASHBOARD ──
+    ['target' => '.nav-item[href*="/dashboard"]', 'title' => 'Welcome', 'text' => 'The Dashboard gives you an overview of the content pipeline. Let\'s look around.', 'url' => '/dashboard', 'group' => 1, 'position' => 'right'],
+    ['target' => '.stats-grid', 'title' => 'Content overview', 'text' => 'See the big picture: how many posts are in the pipeline, what\'s scheduled, and what\'s been published.', 'url' => null, 'group' => 0, 'position' => 'bottom'],
+
+    // ── REVIEWS (main workspace) ──
+    ['target' => '.nav-item[href*="/reviews"]', 'title' => 'Review Queue', 'text' => 'This is your main workspace. Posts needing your approval appear here.', 'url' => '/reviews', 'group' => 1, 'position' => 'right'],
+    ['target' => '.main-content', 'title' => 'Approve or request changes', 'text' => 'Each post shows its content preview and approval progress. Click Approve to give the green light, or Request Changes to send feedback to the editor.', 'url' => null, 'group' => 0, 'position' => 'top'],
+
+    // ── CALENDAR (view only) ──
+    ['target' => '.nav-item[href*="/calendar"]', 'title' => 'Content Calendar', 'text' => 'See what\'s scheduled and when posts are going out across all platforms. Read-only for reviewers.', 'url' => '/calendar', 'group' => 1, 'position' => 'right'],
+
+    // ── REPORTS (view only) ──
+    ['target' => '.nav-item[href*="/reporting"]', 'title' => 'Reports', 'text' => 'You can view the reports page to track what\'s been published and how it performed. Admins and editors are the ones who generate new reports.', 'url' => '/reporting', 'group' => 1, 'position' => 'right'],
+
+    // ── FINALE ──
     ['target' => null, 'title' => 'Ready to review!', 'text' => 'Check the Review Queue for posts awaiting your approval. The team is counting on you!', 'url' => null, 'group' => 0, 'position' => 'center'],
 ];
 

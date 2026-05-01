@@ -83,6 +83,15 @@ class Controller
     protected function verifyCsrf(): bool
     {
         $token = $_POST['csrf_token'] ?? '';
+        if ($token === '') {
+            $raw = file_get_contents('php://input');
+            if ($raw !== '' && $raw !== false) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded) && isset($decoded['csrf_token'])) {
+                    $token = (string) $decoded['csrf_token'];
+                }
+            }
+        }
         return hash_equals($_SESSION['csrf_token'] ?? '', $token);
     }
 }

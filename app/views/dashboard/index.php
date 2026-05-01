@@ -187,38 +187,61 @@ setTimeout(function() {
 }
 </style>
 <div class="stats-grid">
-    <div class="stat-card stat-primary">
+    <div class="stat-card stat-primary stat-openable" data-stat-bucket="total" role="button" tabindex="0" aria-label="View all posts">
         <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
         <div class="stat-value"><?= $stats['total'] ?? 0 ?></div>
         <div class="stat-label">Total Posts</div>
         <div class="stat-tooltip"><?= _dashTrendText('total', $_weekTrends) ?></div>
     </div>
-    <div class="stat-card stat-info">
+    <div class="stat-card stat-info stat-openable" data-stat-bucket="scheduled" role="button" tabindex="0" aria-label="View scheduled posts">
         <div class="stat-icon"><i class="fas fa-clock"></i></div>
         <div class="stat-value"><?= $stats['scheduled'] ?? 0 ?></div>
         <div class="stat-label">Scheduled</div>
         <div class="stat-tooltip"><?= _dashTrendText('scheduled', $_weekTrends) ?></div>
     </div>
-    <div class="stat-card stat-success">
+    <div class="stat-card stat-success stat-openable" data-stat-bucket="published" role="button" tabindex="0" aria-label="View published posts">
         <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
         <div class="stat-value"><?= $stats['published'] ?? 0 ?></div>
         <div class="stat-label">Published</div>
         <div class="stat-tooltip"><?= _dashTrendText('published', $_weekTrends) ?></div>
     </div>
-    <div class="stat-card stat-warning">
+    <div class="stat-card stat-warning stat-openable" data-stat-bucket="draft" role="button" tabindex="0" aria-label="View draft posts">
         <div class="stat-icon"><i class="fas fa-pen-fancy"></i></div>
         <div class="stat-value"><?= $stats['draft'] ?? 0 ?></div>
         <div class="stat-label">Drafts</div>
         <div class="stat-tooltip"><?= _dashTrendText('draft', $_weekTrends) ?></div>
     </div>
     <?php if (($stats['failed'] ?? 0) > 0): ?>
-    <a href="<?= BASE_URL ?>/reporting#failed-posts" class="stat-card stat-danger" style="text-decoration:none;cursor:pointer">
+    <div class="stat-card stat-danger stat-openable" data-stat-bucket="failed" role="button" tabindex="0" aria-label="View failed posts">
         <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
         <div class="stat-value"><?= $stats['failed'] ?></div>
         <div class="stat-label">Failed</div>
         <div class="stat-tooltip"><?= _dashTrendText('failed', $_weekTrends) ?></div>
-    </a>
+    </div>
     <?php endif; ?>
+</div>
+
+<!-- Stat bucket lightbox — zoom-in/out modal showing the posts in the clicked bucket -->
+<div id="statBucketModal" class="stat-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="statModalTitle">
+    <div class="stat-modal-backdrop"></div>
+    <div class="stat-modal-dialog" role="document">
+        <div class="stat-modal-header">
+            <div class="stat-modal-header-icon" id="statModalIcon"><i class="fas fa-layer-group"></i></div>
+            <div>
+                <div class="stat-modal-eyebrow">SolidTech</div>
+                <h2 class="stat-modal-title" id="statModalTitle">Loading…</h2>
+            </div>
+            <button type="button" class="stat-modal-close" onclick="closeStatModal()" aria-label="Close">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="stat-modal-body" id="statModalBody">
+            <div class="stat-modal-loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading posts…
+            </div>
+        </div>
+        <div class="stat-modal-footer" id="statModalFooter"></div>
+    </div>
 </div>
 
 <!-- Quick Actions -->
@@ -293,7 +316,7 @@ setTimeout(function() {
 <?php else: ?>
     <div class="card" style="padding:0;overflow:hidden">
         <div class="table-wrapper">
-            <table>
+            <table data-row-thumb="true">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -306,7 +329,7 @@ setTimeout(function() {
                 </thead>
                 <tbody>
                     <?php foreach ($recentPosts as $post): ?>
-                    <tr>
+                    <tr data-image-url="<?= htmlspecialchars($post['image_url'] ?? '') ?>" data-title="<?= htmlspecialchars($post['title'] ?? '') ?>">
                         <td>
                             <div style="font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                                 <?= htmlspecialchars($post['title']) ?>
@@ -354,3 +377,121 @@ setTimeout(function() {
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+// Row image thumbnail tooltip — same slick card used on Posts and Reports views.
+(function attachRowThumbTooltip() {
+    if (window.__rowThumbTooltipAttached) return;
+    window.__rowThumbTooltipAttached = true;
+
+    var tip = null;
+    var imgEl = null;
+    var labelEl = null;
+    var placeholderEl = null;
+    var imgWrap = null;
+    var currentUrl = null;
+    var showTimer = null;
+    var hideTimer = null;
+
+    function ensureTip() {
+        if (tip) return tip;
+        tip = document.createElement('div');
+        tip.className = 'row-thumb-tip';
+        tip.innerHTML =
+            '<div class="row-thumb-tip-img-wrap">' +
+                '<div class="row-thumb-tip-placeholder"><i class="fas fa-image"></i><span>No image yet</span></div>' +
+                '<img alt="" draggable="false">' +
+            '</div>' +
+            '<div class="row-thumb-tip-label"></div>';
+        document.body.appendChild(tip);
+        imgWrap = tip.querySelector('.row-thumb-tip-img-wrap');
+        imgEl = tip.querySelector('img');
+        labelEl = tip.querySelector('.row-thumb-tip-label');
+        placeholderEl = tip.querySelector('.row-thumb-tip-placeholder');
+        return tip;
+    }
+
+    function positionTip(row) {
+        var rect = row.getBoundingClientRect();
+        var tipRect = tip.getBoundingClientRect();
+        var pad = 14;
+        var rightSpace = window.innerWidth - rect.right;
+        var preferRight = rightSpace >= tipRect.width + pad;
+        var left, top;
+        if (preferRight) {
+            left = rect.right + pad;
+            tip.classList.remove('right-anchor');
+        } else {
+            left = rect.left - tipRect.width - pad;
+            tip.classList.add('right-anchor');
+        }
+        top = rect.top + rect.height / 2 - tipRect.height / 2;
+        if (top < 10) top = 10;
+        if (top + tipRect.height > window.innerHeight - 10) {
+            top = window.innerHeight - tipRect.height - 10;
+        }
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+    }
+
+    function showForRow(row) {
+        ensureTip();
+        var url = row.getAttribute('data-image-url') || '';
+        var title = row.getAttribute('data-title') || '';
+        labelEl.textContent = title;
+
+        if (url && url !== currentUrl) {
+            imgEl.classList.remove('loaded');
+            imgEl.removeAttribute('src');
+            imgEl.onload = function() { imgEl.classList.add('loaded'); };
+            imgEl.src = url;
+            placeholderEl.style.display = 'none';
+            currentUrl = url;
+        } else if (url) {
+            if (imgEl.complete) imgEl.classList.add('loaded');
+            placeholderEl.style.display = 'none';
+        } else {
+            imgEl.classList.remove('loaded');
+            imgEl.removeAttribute('src');
+            placeholderEl.style.display = '';
+            currentUrl = null;
+        }
+
+        tip.style.left = '-9999px';
+        tip.style.top = '-9999px';
+        tip.classList.add('visible');
+        requestAnimationFrame(function() { positionTip(row); });
+    }
+
+    function hideTip() {
+        if (!tip) return;
+        tip.classList.remove('visible');
+    }
+
+    function bindTable(table) {
+        table.addEventListener('mouseover', function(ev) {
+            var row = ev.target.closest('tr[data-image-url]');
+            if (!row || !table.contains(row)) return;
+            clearTimeout(hideTimer);
+            clearTimeout(showTimer);
+            showTimer = setTimeout(function() { showForRow(row); }, 90);
+        });
+        table.addEventListener('mouseout', function(ev) {
+            var row = ev.target.closest('tr[data-image-url]');
+            if (!row) return;
+            var to = ev.relatedTarget;
+            if (to && row.contains(to)) return;
+            clearTimeout(showTimer);
+            hideTimer = setTimeout(hideTip, 60);
+        });
+        table.addEventListener('mousemove', function(ev) {
+            if (!tip || !tip.classList.contains('visible')) return;
+            var row = ev.target.closest('tr[data-image-url]');
+            if (row) positionTip(row);
+        });
+    }
+
+    document.querySelectorAll('table[data-row-thumb="true"]').forEach(bindTable);
+    window.addEventListener('scroll', hideTip, true);
+})();
+</script>

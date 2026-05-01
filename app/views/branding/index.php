@@ -10,7 +10,6 @@ $keyServices = htmlspecialchars($b['key_services'] ?? '');
 $industryKeywords = htmlspecialchars($b['industry_keywords'] ?? '');
 $firstComment = htmlspecialchars($b['first_comment'] ?? '');
 $primaryColor = htmlspecialchars($b['primary_color'] ?? '#6366f1');
-$secondaryColor = htmlspecialchars($b['secondary_color'] ?? '#8b5cf6');
 $logoUrl = $b['logo_url'] ?? '';
 $loginBgUrl = $b['login_bg_url'] ?? '';
 $particlesEnabled = ($b['particles_enabled'] ?? 1) ? true : false;
@@ -389,21 +388,13 @@ $csrfToken = $_SESSION['csrf_token'];
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Primary Color</label>
+                    <label class="form-label">Brand Color</label>
                     <div class="color-picker-row">
                         <input type="color" id="primary_color" name="primary_color" value="<?= $primaryColor ?>">
                         <input type="text" id="primary_color_text" class="form-input" value="<?= $primaryColor ?>" maxlength="7" placeholder="#6366f1">
                         <div class="color-swatch" id="primary_swatch" style="background:<?= $primaryColor ?>"></div>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Secondary Color</label>
-                    <div class="color-picker-row">
-                        <input type="color" id="secondary_color" name="secondary_color" value="<?= $secondaryColor ?>">
-                        <input type="text" id="secondary_color_text" class="form-input" value="<?= $secondaryColor ?>" maxlength="7" placeholder="#8b5cf6">
-                        <div class="color-swatch" id="secondary_swatch" style="background:<?= $secondaryColor ?>"></div>
-                    </div>
+                    <small style="display:block;margin-top:6px;color:var(--text-muted);font-size:12px">This color drives buttons, accents, gradients, charts, and report styling across the app.</small>
                 </div>
 
                 <div class="form-group">
@@ -423,7 +414,7 @@ $csrfToken = $_SESSION['csrf_token'];
                 <div class="form-group">
                     <label class="form-label">Logo</label>
                     <input type="hidden" name="remove_logo" id="remove_logo" value="0">
-                    <div class="file-upload-area logo-upload-area" id="logoUploadArea" style="background: linear-gradient(135deg, <?= $primaryColor ?> 0%, <?= $secondaryColor ?> 100%); border-color: transparent;">
+                    <div class="file-upload-area logo-upload-area" id="logoUploadArea" style="background: linear-gradient(135deg, <?= $primaryColor ?> 0%, color-mix(in srgb, <?= $primaryColor ?> 55%, #000000) 100%); border-color: transparent;">
                         <?php if ($logoUrl): ?>
                             <div class="file-upload-preview" id="logoPreviewWrap">
                                 <button type="button" class="file-remove-btn" onclick="removeUpload('logo')" title="Remove logo"><i class="fas fa-times"></i></button>
@@ -439,6 +430,28 @@ $csrfToken = $_SESSION['csrf_token'];
                         <div class="file-upload-text" style="color: rgba(255,255,255,0.9)">Click to upload logo</div>
                         <div class="file-upload-hint" style="color: rgba(255,255,255,0.5)">JPG, PNG, GIF, WebP or SVG (max 2MB)</div>
                         <input type="file" name="logo" accept="image/*" onchange="previewFile(this, 'logoPreview', 'logoPreviewWrap')">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Dark Logo (for light backgrounds)</label>
+                    <input type="hidden" name="remove_dark_logo" id="remove_dark_logo" value="0">
+                    <div class="file-upload-area" style="background:#f8fafc;border-color:#e2e8f0">
+                        <?php $darkLogoUrl = $b['dark_logo_url'] ?? ''; if ($darkLogoUrl): ?>
+                            <div class="file-upload-preview" id="darkLogoPreviewWrap">
+                                <button type="button" class="file-remove-btn" onclick="removeUpload('dark_logo')" title="Remove dark logo"><i class="fas fa-times"></i></button>
+                                <img src="<?= htmlspecialchars($darkLogoUrl) ?>" alt="Current dark logo" id="darkLogoPreview">
+                            </div>
+                        <?php else: ?>
+                            <div class="file-upload-preview" id="darkLogoPreviewWrap" style="display:none">
+                                <button type="button" class="file-remove-btn" onclick="removeUpload('dark_logo')" title="Remove dark logo"><i class="fas fa-times"></i></button>
+                                <img src="" alt="Dark logo preview" id="darkLogoPreview">
+                            </div>
+                        <?php endif; ?>
+                        <div class="file-upload-icon" style="color:#64748b"><i class="fas fa-moon"></i></div>
+                        <div class="file-upload-text" style="color:#1e293b">Click to upload dark variant</div>
+                        <div class="file-upload-hint" style="color:#94a3b8">Used on generated PDFs &amp; report pages. Optional.</div>
+                        <input type="file" name="dark_logo" accept="image/*" onchange="previewFile(this, 'darkLogoPreview', 'darkLogoPreviewWrap')">
                     </div>
                 </div>
 
@@ -623,9 +636,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var primaryPicker = document.getElementById('primary_color');
     var primaryText = document.getElementById('primary_color_text');
     var primarySwatch = document.getElementById('primary_swatch');
-    var secondaryPicker = document.getElementById('secondary_color');
-    var secondaryText = document.getElementById('secondary_color_text');
-    var secondarySwatch = document.getElementById('secondary_swatch');
 
     primaryPicker.addEventListener('input', function() {
         primaryText.value = this.value;
@@ -640,19 +650,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    secondaryPicker.addEventListener('input', function() {
-        secondaryText.value = this.value;
-        secondarySwatch.style.background = this.value;
-        updatePreview();
-    });
-    secondaryText.addEventListener('input', function() {
-        if (/^#[0-9a-fA-F]{6}$/.test(this.value)) {
-            secondaryPicker.value = this.value;
-            secondarySwatch.style.background = this.value;
-            updatePreview();
-        }
-    });
-
     // Live preview updates
     var companyNameInput = document.getElementById('company_name');
     companyNameInput.addEventListener('input', function() {
@@ -661,7 +658,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updatePreview() {
         var color = primaryPicker.value;
-        var color2 = secondaryPicker.value;
         document.getElementById('previewBtn').style.background = color;
         document.getElementById('previewWrapper').style.background =
             'linear-gradient(180deg, ' + color + ' 0%, #0a0a0a 60%, #000000 100%)';
@@ -669,10 +665,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (placeholder) {
             placeholder.style.background = color;
         }
-        // Update logo upload area gradient
+        // Update logo upload area gradient — uses the brand color + a darker shade of itself
         var logoArea = document.getElementById('logoUploadArea');
         if (logoArea) {
-            logoArea.style.background = 'linear-gradient(135deg, ' + color + ' 0%, ' + color2 + ' 100%)';
+            logoArea.style.background = 'linear-gradient(135deg, ' + color + ' 0%, color-mix(in srgb, ' + color + ' 55%, #000) 100%)';
         }
     }
 });
@@ -681,6 +677,7 @@ function removeUpload(field) {
     // Map field names to their elements
     var map = {
         'logo': { preview: 'logoPreviewWrap', img: 'logoPreview', input: 'logo', hidden: 'remove_logo' },
+        'dark_logo': { preview: 'darkLogoPreviewWrap', img: 'darkLogoPreview', input: 'dark_logo', hidden: 'remove_dark_logo' },
         'login_bg': { preview: 'bgPreviewWrap', img: 'bgPreview', input: 'login_bg', hidden: 'remove_login_bg' },
         'favicon': { preview: 'faviconPreviewWrap', img: 'faviconPreview', input: 'favicon', hidden: 'remove_favicon' },
     };

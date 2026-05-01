@@ -113,6 +113,12 @@ class PostController extends Controller
             $memoryService->remember($id, $data['topic'], $data['keywords'], $data['angle'], $clientId);
         }
 
+        (new ActivityLogService())->logPostAction('post_created', (int)$id, $data['title'], [
+            'platforms' => $platforms,
+            'status'    => $data['status'],
+            'topic'     => $data['topic'] ?: null,
+        ]);
+
         $this->json(['success' => true, 'id' => $id]);
     }
 
@@ -145,6 +151,10 @@ class PostController extends Controller
 
         $postModel->update((int) $id, $data);
 
+        (new ActivityLogService())->logPostAction('post_updated', (int)$id, $data['title'], [
+            'status' => $data['status'],
+        ]);
+
         $this->json(['success' => true]);
     }
 
@@ -155,7 +165,14 @@ class PostController extends Controller
         @ob_clean();
 
         $postModel = new Post();
+
+        // Snapshot title before delete so the log entry is readable
+        $existing = $postModel->find((int) $id);
+        $title = $existing['title'] ?? '';
+
         $postModel->delete((int) $id);
+
+        (new ActivityLogService())->logPostAction('post_deleted', (int)$id, $title);
 
         $this->json(['success' => true]);
     }
@@ -191,6 +208,10 @@ class PostController extends Controller
 
         // Just mark as scheduled — the cron job handles the rest
         $postModel->update((int) $id, ['status' => 'scheduled']);
+
+        (new ActivityLogService())->logPostAction('post_scheduled', (int)$id, $post['title'] ?? '', [
+            'scheduled_at' => $scheduledAt,
+        ]);
 
         $this->json([
             'success' => true,
@@ -259,6 +280,13 @@ class PostController extends Controller
 
         $newStatus = $allSuccess ? 'published' : ($anySuccess ? 'published' : 'failed');
         $postModel->update((int) $id, ['status' => $newStatus]);
+
+        (new ActivityLogService())->logPostAction(
+            $newStatus === 'published' ? 'post_posted_now' : 'post_failed',
+            (int)$id,
+            $post['title'] ?? '',
+            ['platforms' => $platforms, 'new_status' => $newStatus]
+        );
 
         $this->json([
             'success' => true,
@@ -368,6 +396,11 @@ class PostController extends Controller
         if ($allSuccess || $anySuccess) {
             $postModel->update((int) $id, ['status' => 'published']);
         }
+
+        (new ActivityLogService())->logPostAction('post_retried', (int)$id, $post['title'] ?? '', [
+            'retried_platforms' => $failedPlatforms,
+            'all_success' => $allSuccess,
+        ]);
 
         $this->json([
             'success' => $allSuccess,

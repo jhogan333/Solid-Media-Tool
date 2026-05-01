@@ -18,8 +18,10 @@ require_once APP_ROOT . '/core/Controller.php';
 require_once APP_ROOT . '/core/Model.php';
 require_once APP_ROOT . '/app/models/Post.php';
 require_once APP_ROOT . '/app/models/BrandingSetting.php';
+require_once APP_ROOT . '/app/models/ActivityLog.php';
 require_once APP_ROOT . '/app/services/BrandingService.php';
 require_once APP_ROOT . '/app/services/ZernioService.php';
+require_once APP_ROOT . '/app/services/ActivityLogService.php';
 
 // Prevent web access
 if (php_sapi_name() !== 'cli' && !defined('CRON_RUNNING')) {
@@ -62,6 +64,7 @@ try {
     }
 
     $zernio = new ZernioService();
+    $activityLog = new ActivityLogService();
 
     foreach ($duePosts as $post) {
         $postId = (int) $post['id'];
@@ -102,23 +105,31 @@ try {
 
             if ($result['success']) {
                 $zernioPostId = $result['zernio_post_id'] ?? null;
-                $zernio->logPostAttempt(
-                    $postId, $platform, 'success',
-                    $zernio->getAccountId($platform),
-                    $zernioPostId,
-                    json_encode($result)
-                );
+                try {
+                    $zernio->logPostAttempt(
+                        $postId, $platform, 'success',
+                        $zernio->getAccountId($platform),
+                        $zernioPostId,
+                        json_encode($result)
+                    );
+                } catch (Throwable $logErr) {
+                    cronLog("  WARNING: logPostAttempt failed: {$logErr->getMessage()}", $logFile);
+                }
                 $anySuccess = true;
                 cronLog("  {$platform}: SUCCESS (zernio_id: {$zernioPostId})", $logFile);
             } else {
                 $error = $result['error'] ?? 'Unknown error';
-                $zernio->logPostAttempt(
-                    $postId, $platform, 'failed',
-                    $zernio->getAccountId($platform),
-                    null,
-                    json_encode($result),
-                    $error
-                );
+                try {
+                    $zernio->logPostAttempt(
+                        $postId, $platform, 'failed',
+                        $zernio->getAccountId($platform),
+                        null,
+                        json_encode($result),
+                        $error
+                    );
+                } catch (Throwable $logErr) {
+                    cronLog("  WARNING: logPostAttempt failed: {$logErr->getMessage()}", $logFile);
+                }
                 $allSuccess = false;
                 cronLog("  {$platform}: FAILED ({$error})", $logFile);
             }
@@ -130,6 +141,29 @@ try {
         $updateStmt->execute([$newStatus, $postId]);
 
         cronLog("  Post #{$postId} status -> {$newStatus}", $logFile);
+
+        // Record activity log event for this publish attempt (try/catch protected by the service itself)
+        try {
+            $activityLog->log([
+                'client_id'   => (int) ($post['client_id'] ?? $GLOBALS['client_id']),
+                'user_id'     => null,
+                'user_name'   => 'System (cron)',
+                'user_role'   => 'system',
+                'action'      => $newStatus === 'published' ? 'post_published' : 'post_failed',
+                'entity_type' => 'post',
+                'entity_id'   => $postId,
+                'description' => $newStatus === 'published'
+                    ? "Auto-published \"{$post['title']}\""
+                    : "Failed to auto-publish \"{$post['title']}\"",
+                'metadata'    => [
+                    'platforms'   => $platforms,
+                    'all_success' => $allSuccess,
+                    'any_success' => $anySuccess,
+                ],
+            ]);
+        } catch (Throwable $logErr) {
+            cronLog("  WARNING: activity log insert failed: {$logErr->getMessage()}", $logFile);
+        }
     }
 
     cronLog('--- Cron finished ---', $logFile);

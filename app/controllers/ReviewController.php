@@ -38,6 +38,17 @@ class ReviewController extends Controller
             $input['comment'] ?? null
         );
 
+        // Resolve title for the log
+        $postTitle = '';
+        try {
+            $post = (new Post())->find((int)$id);
+            $postTitle = $post['title'] ?? '';
+        } catch (\Throwable $e) { /* ignore */ }
+
+        (new ActivityLogService())->logPostAction('post_approved', (int)$id, $postTitle, [
+            'comment' => $input['comment'] ?? null,
+        ]);
+
         @ob_clean();
         $this->json(['success' => true, 'result' => $result]);
     }
@@ -61,6 +72,16 @@ class ReviewController extends Controller
 
         $approvalService = new ApprovalService();
         $approvalService->requestChanges((int)$id, (int)$_SESSION['user_id'], $comment);
+
+        $postTitle = '';
+        try {
+            $post = (new Post())->find((int)$id);
+            $postTitle = $post['title'] ?? '';
+        } catch (\Throwable $e) { /* ignore */ }
+
+        (new ActivityLogService())->logPostAction('post_changes_requested', (int)$id, $postTitle, [
+            'comment' => $comment,
+        ]);
 
         @ob_clean();
         $this->json(['success' => true]);

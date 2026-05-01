@@ -1,7 +1,62 @@
 <style>
-.cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding:16px 20px; background:var(--bg-card); border:1px solid var(--border); border-left:4px solid var(--primary); border-radius:var(--radius-lg); box-shadow:0 2px 8px rgba(0,0,0,0.04); }
-.cal-header h2 { font-size:22px; font-weight:700; color:var(--text); min-width:220px; text-align:center; }
-.cal-nav { display:flex; gap:8px; }
+/* Calendar month header — brand gradient matching the topbar */
+.cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding: 18px 24px;
+    background: linear-gradient(180deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 70%, #000000) 100%);
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18),
+                inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.cal-header h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
+    min-width: 220px;
+    text-align: center;
+    letter-spacing: -0.01em;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.25);
+}
+.cal-nav { display: flex; gap: 8px; }
+
+/* Calendar header buttons — glassy white-on-gradient, mirrors the topbar */
+.cal-header .btn,
+.cal-header .btn-ghost {
+    background: rgba(255,255,255,0.14) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: all 0.22s cubic-bezier(0.22,1,0.36,1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.cal-header .btn i {
+    color: #ffffff !important;
+}
+.cal-header .btn:hover,
+.cal-header .btn-ghost:hover {
+    background: rgba(255,255,255,0.24) !important;
+    border-color: rgba(255,255,255,0.42) !important;
+    transform: scale(1.04);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+}
+.cal-header .btn:active {
+    transform: scale(0.97);
+}
+.cal-header .btn-icon {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; background:var(--bg-card); box-shadow:0 4px 16px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); }
 .cal-day-header { padding:14px 8px; font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase; letter-spacing:0.06em; text-align:center; background:linear-gradient(180deg, rgba(var(--primary-rgb),0.06) 0%, rgba(var(--primary-rgb),0.02) 100%); border-bottom:2px solid rgba(var(--primary-rgb),0.12); }
 .cal-cell { min-height:110px; padding:8px; border-bottom:1px solid var(--border-light); border-right:1px solid var(--border-light); position:relative; transition:all 0.2s ease; }

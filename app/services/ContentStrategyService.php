@@ -64,12 +64,25 @@ class ContentStrategyService
             }
         }
 
+        // Default every new theme to have all the required elements checked.
+        // The user can uncheck any they don't want, but out-of-the-box we always
+        // include phone, website, hashtags, CTA and (sparingly) emojis on every post.
+        $defaultElements = [
+            'phone' => true,
+            'website' => true,
+            'hashtags' => true,
+            'cta' => true,
+            'emojis' => true,
+        ];
+        $required = is_array($data['required_elements'] ?? null) ? $data['required_elements'] : [];
+        $required = array_merge($defaultElements, $required);
+
         $themeData = [
             'client_id' => $clientId,
             'name' => $name,
             'description' => trim($data['description'] ?? ''),
             'copy_instructions' => trim($data['copy_instructions'] ?? ''),
-            'required_elements' => json_encode($data['required_elements'] ?? []),
+            'required_elements' => json_encode($required),
             'default_hashtags' => trim($data['default_hashtags'] ?? ''),
             'image_style_override' => $data['image_style_override'] ?? 'global',
             'sort_order' => (int)($data['sort_order'] ?? 0),

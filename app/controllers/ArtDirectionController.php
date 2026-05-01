@@ -38,6 +38,8 @@ class ArtDirectionController extends Controller
         $artService = new ArtDirectionService();
         $artService->save($GLOBALS['client_id'], $input);
 
+        (new ActivityLogService())->logSettingsChange('art_direction');
+
         @ob_clean();
         $this->json(['success' => true]);
     }

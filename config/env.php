@@ -2,7 +2,8 @@
 
 define('APP_ENV', 'local');
 define('APP_NAME', 'SolidTech Social');
-define('APP_VERSION', '1.0.0');
+define('APP_VERSION', '2.0.0');
+define('APP_TIMEZONE', 'America/Edmonton');
 
 if (APP_ENV === 'local') {
     define('DB_HOST', 'localhost');

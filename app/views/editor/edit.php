@@ -19,7 +19,6 @@ $brandingService = new BrandingService();
 $branding = $brandingService->get($GLOBALS['client_id']);
 $companyName = htmlspecialchars($branding['company_name'] ?? 'Your Company');
 $primaryColor = htmlspecialchars($branding['primary_color'] ?? '#6366f1');
-$secondaryColor = htmlspecialchars($branding['secondary_color'] ?? '#8b5cf6');
 $logoUrl = $branding['logo_url'] ?? '';
 $defaultFirstComment = $branding['first_comment'] ?? '';
 $postFirstComment = $post['first_comment'] ?? '';
@@ -1116,23 +1115,21 @@ function deletePost() {
 
 // Regenerate image
 async function regenerateImage() {
-    const content = document.getElementById('edit-content').value.trim();
+    try {
+    var content = document.getElementById('edit-content').value.trim();
     if (!content) {
         showToast('Add some content first so the AI knows what image to generate.', 'warning');
         return;
     }
 
     // Register with global tracker
-    if (typeof GenTracker !== 'undefined') GenTracker.addTask(postId, 'image');
+    try { if (typeof GenTracker !== 'undefined') GenTracker.addTask(postId, 'image'); } catch(e) {}
     var _genTrackerCleanup = function(success) {
-        if (typeof GenTracker !== 'undefined') {
-            if (success) GenTracker.removeTask(postId);
-            else GenTracker.clearAll();
-        }
+        try { if (typeof GenTracker !== 'undefined') { if (success) GenTracker.removeTask(postId); else GenTracker.clearAll(); } } catch(e) {}
     };
 
-    const btn = document.getElementById('btn-regen-image');
-    const preview = document.getElementById('image-preview');
+    var btn = document.getElementById('btn-regen-image');
+    var preview = document.getElementById('image-preview');
     setLoading(btn, true, 'Generating...');
 
     // Branded AI image generation overlay
@@ -1288,11 +1285,16 @@ async function regenerateImage() {
         }, 180000);
 
     } catch (err) {
-        clearInterval(portalInterval);
+        if (typeof portalInterval !== 'undefined') clearInterval(portalInterval);
         _genTrackerCleanup(false);
-        preview.innerHTML = '<div class="placeholder-icon"><i class="fas fa-image"></i><span>Image generation failed</span></div>';
+        if (preview) preview.innerHTML = '<div class="placeholder-icon"><i class="fas fa-image"></i><span>Image generation failed</span></div>';
         showImageErrorModal(err.message, function() { regenerateImage(); });
-        setLoading(btn, false);
+        if (btn) setLoading(btn, false);
+    }
+    } catch (outerErr) {
+        // Catch-all: show the actual error so we can debug
+        showToast('regenerateImage error: ' + outerErr.message, 'error');
+        console.error('regenerateImage error:', outerErr);
     }
 }
 

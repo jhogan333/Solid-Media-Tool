@@ -236,8 +236,13 @@ $csrfToken = $_SESSION['csrf_token'];
             </div>
 
             <div class="form-group">
-                <label class="form-label">Avoid List <span style="font-weight:400;color:var(--text-muted)">(styles to never use)</span></label>
-                <textarea id="avoid_list" class="form-textarea" rows="3" oninput="updatePreview()" placeholder="Comma-separated terms..."><?= htmlspecialchars($s['avoid_list'] ?? '') ?></textarea>
+                <label class="form-label">Things to Exclude from Images <span style="font-weight:400;color:var(--text-muted)">(negative prompt)</span></label>
+                <textarea id="avoid_list" class="form-textarea" rows="3" oninput="updatePreview()" placeholder="children, pets, outdoor scenes, crowds, clutter, hands holding phones..."><?= htmlspecialchars($s['avoid_list'] ?? '') ?></textarea>
+                <div class="text-small text-muted" style="margin-top:6px;line-height:1.5">
+                    Comma-separated subjects or elements you never want appearing in generated images.
+                    Style (photorealistic vs illustrated) is already controlled by the Realism Level above &mdash;
+                    use this field for <em>content</em>, not style. Example: <code>children, pets, outdoor scenes, crowds, stock-photo handshakes</code>.
+                </div>
             </div>
         </div>
 
@@ -314,8 +319,8 @@ $csrfToken = $_SESSION['csrf_token'];
             </div>
         </div>
 
-        <!-- Prompt Preview -->
-        <div class="card" style="margin-bottom:24px">
+        <!-- Prompt Preview (hidden from UI — kept in DOM so updatePreview() still works) -->
+        <div class="card" style="margin-bottom:24px;display:none" aria-hidden="true">
             <div class="card-header">
                 <div>
                     <div class="card-title"><i class="fas fa-code" style="margin-right:8px;color:var(--primary)"></i> Prompt Preview</div>

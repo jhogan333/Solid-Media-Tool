@@ -15,6 +15,13 @@ class Database
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]);
+
+                // Set MySQL session timezone to match the app timezone
+                if (defined('APP_TIMEZONE') && APP_TIMEZONE) {
+                    date_default_timezone_set(APP_TIMEZONE);
+                    $tz = (new DateTime('now', new DateTimeZone(APP_TIMEZONE)))->format('P');
+                    self::$instance->exec("SET time_zone = '{$tz}'");
+                }
             } catch (PDOException $e) {
                 throw new RuntimeException('Database connection failed: ' . $e->getMessage());
             }
